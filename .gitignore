@@ -1,0 +1,13 @@
+*.terraform
+*.tfstate
+*.tfstate.backup
+*.lock*
+*.infracost
+
+# Editor files
+*.swp
+*.swo
+
+
+# Terraform plugins
+.terraform.d
