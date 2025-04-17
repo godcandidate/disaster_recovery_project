@@ -2,6 +2,12 @@ provider "aws" {
   region = var.region
 }
 
+# Provider for Primary region
+provider "aws" {
+  alias  = "primary"
+  region = var.primary_region
+}
+
 
 terraform {
   required_version = ">= 1.0.0"
@@ -143,4 +149,19 @@ module "rds" {
   tags = local.tags
 }
 
-# SSM Module and SSM Parameter removed as requested
+# S3 Module - DR Region with access to primary region buckets
+module "s3" {
+  source = "../../modules/s3"
+  
+  environment = var.environment
+  region      = var.region
+  dr_region   = var.primary_region  # In DR environment, the primary region is the DR region for S3
+  bucket_name = "storage-${var.environment}"
+  
+  providers = {
+    aws    = aws
+    aws.dr = aws.primary
+  }
+  
+  tags = local.tags
+}

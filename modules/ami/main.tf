@@ -14,8 +14,8 @@ resource "aws_ami_from_instance" "this" {
 
   # Wait for AMI to be available
   timeouts {
-    create = "60m"
-    delete = "20m"
+    create = "20m"
+    delete = "10m"
   }
 }
 
@@ -45,7 +45,7 @@ resource "aws_ami_copy" "dr_region" {
 
   # Wait for AMI copy to be available
   timeouts {
-    create = "120m"
-    delete = "20m"
+    create = "15m"
+    delete = "10m"
   }
 }

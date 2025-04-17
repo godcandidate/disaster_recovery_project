@@ -3,7 +3,7 @@
 *.tfstate.backup
 *.lock*
 *.infracost
-
+production*
 # Editor files
 *.swp
 *.swo

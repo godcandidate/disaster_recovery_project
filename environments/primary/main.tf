@@ -2,6 +2,12 @@ provider "aws" {
   region = var.region
 }
 
+# Provider for DR region
+provider "aws" {
+  alias  = "dr"
+  region = var.dr_region
+}
+
 terraform {
   required_version = ">= 1.0.0"
   required_providers {
@@ -190,3 +196,20 @@ module "rds" {
 }
 
 # SSM Module removed as requested
+
+# S3 Module - Primary Region with Cross-Region Replication to DR
+module "s3" {
+  source = "../../modules/s3"
+  
+  environment = var.environment
+  region      = var.region
+  dr_region   = var.dr_region
+  bucket_name = "storage-${var.environment}"
+  
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+  
+  tags = local.tags
+}
