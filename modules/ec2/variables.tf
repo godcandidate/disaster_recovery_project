@@ -92,6 +92,8 @@ variable "is_pilot_light" {
   default     = false
 }
 
+# AMI builder functionality moved to standalone EC2 instance in primary environment
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)

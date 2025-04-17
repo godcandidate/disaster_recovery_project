@@ -97,6 +97,73 @@ module "ec2" {
   tags = local.tags
 }
 
+# AMI Builder Instance - For creating a pre-configured AMI
+resource "aws_instance" "ami_builder" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = module.vpc.public_subnet_ids[0] # Use public subnet for easier access
+  vpc_security_group_ids = [module.security_groups.ec2_security_group_id]
+  key_name               = var.key_name
+  iam_instance_profile   = module.iam.ec2_instance_profile_name
+  
+  user_data = templatefile("../../modules/templates/primary_userdata.tpl", {
+    environment = var.environment
+    region      = var.region
+    DB_NAME     = var.db_name
+    DB_USER     = var.db_username
+    DB_PASSWORD = var.db_password
+    DB_HOST     = module.rds.primary_db_instance_address
+  })
+  
+  tags = merge(
+    local.tags,
+    {
+      Name    = "dr-ami-builder-${var.environment}"
+      Purpose = "AMI Creation"
+    }
+  )
+  
+  # Wait for instance to be ready before creating AMI
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws ec2 wait instance-status-ok --instance-ids ${self.id} --region ${var.region}
+      sleep 60  # Additional time for user data script to complete
+    EOT
+  }
+}
+
+# Data source for Amazon Linux AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# AMI Creation from the builder instance
+module "ami" {
+  source = "../../modules/ami"
+  
+  environment         = var.environment
+  region              = var.region
+  source_instance_id  = aws_instance.ami_builder.id
+  snapshot_without_reboot = true
+  dr_region           = var.dr_region # Copy AMI to DR region
+  
+  tags = local.tags
+  
+  # Only create the AMI after the builder instance is fully provisioned
+  depends_on = [aws_instance.ami_builder]
+}
+
 # RDS Module - Primary Region
 module "rds" {
   source = "../../modules/rds"

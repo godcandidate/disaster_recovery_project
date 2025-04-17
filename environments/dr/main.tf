@@ -69,6 +69,22 @@ module "security_groups" {
   tags             = local.tags
 }
 
+# Data source to get the AMI created in the primary region
+data "aws_ami" "dr_ami" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["dr-ami-primary-*"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
 # EC2 Module - DR Region (Pilot Light)
 module "ec2" {
   source = "../../modules/ec2"
@@ -85,8 +101,10 @@ module "ec2" {
   max_size             = 2
   desired_capacity     = 0
   is_pilot_light       = true
+  ami_id               = data.aws_ami.dr_ami.id # Use the AMI created in the primary region
   
   # User data script for EC2 instances
+  # Minimal user data since most setup is already in the AMI
   user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
     environment = var.environment
     region      = var.region

@@ -31,6 +31,7 @@ echo "Database credentials set for docker-compose"
 SCRIPT
 
 chmod +x /usr/local/bin/get-db-credentials.sh
+EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
 # Create docker-compose.yml file
 mkdir -p /app
@@ -43,7 +44,7 @@ services:
     image: godcandidate/lamp-stack-frontend:latest
     container_name: frontend
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/todos
+      - NEXT_PUBLIC_API_BASE_URL=http://${EC2_IP}:5000/todos
     ports:
       - "80:3000" 
     depends_on:
@@ -57,10 +58,10 @@ services:
     image: godcandidate/lamp-stack-backend:latest
     container_name: backend
     environment:
-      DB_HOST: \${DB_HOST}
-      DB_NAME: \${DB_NAME}
-      DB_USER: \${DB_USER}
-      DB_PASSWORD: \${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5000:80"
     networks:

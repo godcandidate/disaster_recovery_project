@@ -146,3 +146,5 @@ resource "aws_instance" "pilot_light" {
     ignore_changes = [ami]
   }
 }
+
+# AMI builder functionality moved to standalone EC2 instance in primary environment

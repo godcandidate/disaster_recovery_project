@@ -24,6 +24,8 @@ output "ami_id" {
 }
 
 output "pilot_light_instance_id" {
-  description = "ID of the pilot light instance (if created)"
+  description = "ID of the pilot light instance in DR region"
   value       = var.is_pilot_light && var.environment == "dr" ? aws_instance.pilot_light[0].id : null
 }
+
+# AMI builder functionality moved to standalone EC2 instance in primary environment

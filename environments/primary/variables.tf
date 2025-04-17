@@ -16,6 +16,7 @@ variable "dr_region" {
   default     = "eu-west-2"
 }
 
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
