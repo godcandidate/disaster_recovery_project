@@ -31,6 +31,9 @@ SCRIPT
 
 chmod +x /usr/local/bin/get-db-credentials.sh
 
+# Get the EC2 instance's public IP address at runtime
+EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+
 # Create docker-compose.yml file
 mkdir -p /app
 cat > /app/docker-compose.yml << 'DOCKER_COMPOSE'
@@ -42,7 +45,7 @@ services:
     image: godcandidate/lamp-stack-frontend:latest
     container_name: frontend
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/todos
+      - NEXT_PUBLIC_API_BASE_URL=http://${EC2_IP}:5000/todos
     ports:
       - "80:3000" 
     depends_on:

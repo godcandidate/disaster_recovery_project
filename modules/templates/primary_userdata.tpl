@@ -31,6 +31,8 @@ echo "Database credentials set for docker-compose"
 SCRIPT
 
 chmod +x /usr/local/bin/get-db-credentials.sh
+
+# Get the EC2 instance's public IP address at runtime
 EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
 # Create docker-compose.yml file

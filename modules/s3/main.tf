@@ -109,79 +109,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "dr" {
   }
 }
 
-# IAM role for S3 replication
-resource "aws_iam_role" "replication" {
-  name = "dr-s3-replication-role-${var.environment}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-# IAM policy for S3 replication
-resource "aws_iam_policy" "replication" {
-  name = "dr-s3-replication-policy-${var.environment}"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "s3:GetReplicationConfiguration",
-          "s3:ListBucket"
-        ]
-        Effect = "Allow"
-        Resource = [
-          aws_s3_bucket.primary.arn
-        ]
-      },
-      {
-        Action = [
-          "s3:GetObjectVersionForReplication",
-          "s3:GetObjectVersionAcl",
-          "s3:GetObjectVersionTagging"
-        ]
-        Effect = "Allow"
-        Resource = [
-          "${aws_s3_bucket.primary.arn}/*"
-        ]
-      },
-      {
-        Action = [
-          "s3:ReplicateObject",
-          "s3:ReplicateDelete",
-          "s3:ReplicateTags"
-        ]
-        Effect = "Allow"
-        Resource = [
-          "${aws_s3_bucket.dr.arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-# Attach policy to IAM role
-resource "aws_iam_role_policy_attachment" "replication" {
-  role       = aws_iam_role.replication.name
-  policy_arn = aws_iam_policy.replication.arn
-}
+# Using IAM role from IAM module for S3 replication
 
 # Configure replication on primary bucket
 resource "aws_s3_bucket_replication_configuration" "primary" {
-  # Must have bucket versioning enabled first
-  depends_on = [aws_s3_bucket_versioning.primary]
+  # Must have bucket versioning enabled on both source and destination buckets
+  depends_on = [aws_s3_bucket_versioning.primary, aws_s3_bucket_versioning.dr]
 
-  role   = aws_iam_role.replication.arn
+  role   = var.replication_role_arn
   bucket = aws_s3_bucket.primary.id
 
   rule {

@@ -118,6 +118,7 @@ module "ec2" {
     DB_USER     = var.db_username
     DB_PASSWORD = var.db_password
     DB_HOST     = module.rds.read_replica_db_instance_address
+    EC2_IP      = "dummy" # This will be replaced at runtime by the script
   })
   
   tags = local.tags
@@ -157,6 +158,7 @@ module "s3" {
   region      = var.region
   dr_region   = var.primary_region  # In DR environment, the primary region is the DR region for S3
   bucket_name = "storage-${var.environment}"
+  replication_role_arn = module.iam.s3_replication_role_arn
   
   providers = {
     aws    = aws
@@ -164,4 +166,28 @@ module "s3" {
   }
   
   tags = local.tags
+}
+
+# Lambda Module - DR Region (Disabled)
+module "lambda" {
+  source = "../../modules/lambda"
+  
+  environment = var.environment
+  region      = var.region
+  function_name = "tasks-due-tomorrow"
+  s3_bucket_id = module.s3.primary_bucket_id
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  db_host     = module.rds.read_replica_db_instance_address
+  db_username = var.db_username
+  db_password = var.db_password
+  db_name     = var.db_name
+  enabled     = false  # Disabled in DR region
+  build_locally = false  # Use the package from the primary region
+  lambda_role_arn = module.iam.lambda_role_arn
+  
+  tags = local.tags
+  
+  # Ensure S3 bucket is created before Lambda
+  depends_on = [module.s3]
 }

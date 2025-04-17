@@ -13,7 +13,7 @@ variable "region" {
 variable "dr_region" {
   description = "AWS region for the DR environment"
   type        = string
-  default     = "eu-west-2"
+  default     = "us-east-1"
 }
 
 

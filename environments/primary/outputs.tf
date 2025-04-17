@@ -51,6 +51,39 @@ output "rds_role_arn" {
   value       = module.iam.rds_role_arn
 }
 
+# Region Output
+output "region" {
+  description = "AWS region for the primary environment"
+  value       = var.region
+}
+
+# S3 Outputs
+output "s3_primary_bucket_id" {
+  description = "ID of the primary S3 bucket"
+  value       = module.s3.primary_bucket_id
+}
+
+output "s3_dr_bucket_id" {
+  description = "ID of the DR S3 bucket"
+  value       = module.s3.dr_bucket_id
+}
+
+# Lambda Outputs
+output "lambda_function_name" {
+  description = "Name of the Lambda function in the primary region"
+  value       = module.lambda.lambda_function_name
+}
+
+output "lambda_function_arn" {
+  description = "ARN of the Lambda function in the primary region"
+  value       = module.lambda.lambda_function_arn
+}
+
+output "lambda_enabled" {
+  description = "Whether the Lambda function is enabled in the primary region"
+  value       = module.lambda.lambda_enabled
+}
+
 output "lambda_role_arn" {
   description = "ARN of the Lambda IAM role in the primary region"
   value       = module.iam.lambda_role_arn
@@ -104,8 +137,3 @@ output "backup_replication_kms_key_arn" {
 }
 
 # SSM Parameter Store Outputs removed as requested
-
-output "region" {
-  description = "Primary region"
-  value       = var.region
-}

@@ -317,3 +317,79 @@ resource "aws_iam_role_policy_attachment" "lambda_cross_region_attachment" {
   role       = aws_iam_role.lambda_dr_role.name
   policy_arn = aws_iam_policy.cross_region_assume_role.arn
 }
+
+# S3 Replication IAM Role
+resource "aws_iam_role" "s3_replication_role" {
+  name = "s3-replication-role-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = merge(
+    {
+      Name        = "s3-replication-role-${var.environment}"
+      Environment = var.environment
+    },
+    var.tags
+  )
+}
+
+# S3 Replication Policy
+resource "aws_iam_policy" "s3_replication_policy" {
+  name        = "s3-replication-policy-${var.environment}"
+  description = "Policy for S3 cross-region replication"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:s3:::dr-*-${var.environment}-*-${var.primary_region}"
+        ]
+      },
+      {
+        Action = [
+          "s3:GetObjectVersionForReplication",
+          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionTagging"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:s3:::dr-*-${var.environment}-*-${var.primary_region}/*"
+        ]
+      },
+      {
+        Action = [
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:s3:::dr-*-${var.environment}-*-${var.dr_region}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach S3 replication policy to role
+resource "aws_iam_role_policy_attachment" "s3_replication_attachment" {
+  role       = aws_iam_role.s3_replication_role.name
+  policy_arn = aws_iam_policy.s3_replication_policy.arn
+}

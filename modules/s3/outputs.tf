@@ -28,10 +28,7 @@ output "dr_bucket_domain_name" {
   value       = aws_s3_bucket.dr.bucket_domain_name
 }
 
-output "replication_role_arn" {
-  description = "ARN of the IAM role used for S3 replication"
-  value       = aws_iam_role.replication.arn
-}
+# Replication role moved to IAM module
 
 output "production_media_folder_path" {
   description = "Path to the production media folder in the primary bucket"

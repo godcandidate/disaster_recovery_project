@@ -22,3 +22,8 @@ output "cross_region_assume_role_policy_arn" {
   description = "ARN of the cross-region assume role policy"
   value       = aws_iam_policy.cross_region_assume_role.arn
 }
+
+output "s3_replication_role_arn" {
+  description = "ARN of the S3 replication IAM role"
+  value       = aws_iam_role.s3_replication_role.arn
+}

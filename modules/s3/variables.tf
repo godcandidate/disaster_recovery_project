@@ -23,3 +23,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "replication_role_arn" {
+  description = "ARN of the IAM role for S3 replication"
+  type        = string
+}

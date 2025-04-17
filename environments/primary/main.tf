@@ -98,6 +98,7 @@ module "ec2" {
     DB_USER     = var.db_username
     DB_PASSWORD = var.db_password
     DB_HOST     = module.rds.primary_db_instance_address
+    EC2_IP      = "dummy" # This will be replaced at runtime by the script
   })
   
   tags = local.tags
@@ -119,6 +120,7 @@ resource "aws_instance" "ami_builder" {
     DB_USER     = var.db_username
     DB_PASSWORD = var.db_password
     DB_HOST     = module.rds.primary_db_instance_address
+    EC2_IP      = "dummy" # This will be replaced at runtime by the script
   })
   
   tags = merge(
@@ -205,6 +207,7 @@ module "s3" {
   region      = var.region
   dr_region   = var.dr_region
   bucket_name = "storage-${var.environment}"
+  replication_role_arn = module.iam.s3_replication_role_arn
   
   providers = {
     aws    = aws
@@ -212,4 +215,27 @@ module "s3" {
   }
   
   tags = local.tags
+}
+
+# Lambda Module - Primary Region (Enabled)
+module "lambda" {
+  source = "../../modules/lambda"
+  
+  environment = var.environment
+  region      = var.region
+  function_name = "tasks-due-tomorrow"
+  s3_bucket_id = module.s3.primary_bucket_id
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  db_host     = module.rds.primary_db_instance_address
+  db_username = var.db_username
+  db_password = var.db_password
+  db_name     = var.db_name
+  enabled     = true  # Enabled in primary region
+  build_locally = true
+  lambda_role_arn = module.iam.lambda_role_arn
+  
+  tags = local.tags
+  
+
 }
