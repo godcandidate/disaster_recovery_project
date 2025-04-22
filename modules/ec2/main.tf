@@ -1,6 +1,5 @@
 # Find the latest AMI if ami_id is not provided
 data "aws_ami" "latest" {
-  count       = var.ami_id == null ? 1 : 0
   most_recent = true
   owners      = var.ami_owners
 
@@ -21,13 +20,13 @@ data "aws_ami" "latest" {
 }
 
 locals {
-  ami_id = var.ami_id != null ? var.ami_id : data.aws_ami.latest[0].id
+  ami_id = coalesce(var.ami_id, data.aws_ami.latest.id)
 }
 
 # Launch Template for EC2 instances
 resource "aws_launch_template" "this" {
   name_prefix            = "dr-launch-template-${var.environment}-"
-  image_id               = local.ami_id
+  image_id               = var.ami_id != "" ? var.ami_id : local.ami_id
   instance_type          = var.instance_type
   vpc_security_group_ids = [var.security_group_id]
   key_name               = var.key_name
@@ -92,6 +91,10 @@ resource "aws_autoscaling_group" "this" {
       min_healthy_percentage = 50
     }
   }
+  
+  # Health check settings
+  health_check_type         = "EC2"
+  health_check_grace_period = 300
 
   dynamic "tag" {
     for_each = merge(
@@ -107,6 +110,8 @@ resource "aws_autoscaling_group" "this" {
       propagate_at_launch = true
     }
   }
+
+  target_group_arns = var.target_group_arns
 
   lifecycle {
     create_before_destroy = true

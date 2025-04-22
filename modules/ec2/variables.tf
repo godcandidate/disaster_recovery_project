@@ -43,7 +43,7 @@ variable "instance_profile_name" {
 variable "ami_id" {
   description = "AMI ID for EC2 instances (if not using ami_filter)"
   type        = string
-  default     = null
+  default     = ""
 }
 
 variable "ami_filter" {
@@ -98,4 +98,10 @@ variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)
   default     = {}
+}
+
+variable "target_group_arns" {
+  description = "List of target group ARNs to attach to the Auto Scaling Group"
+  type        = list(string)
+  default     = []
 }

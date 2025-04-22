@@ -30,10 +30,7 @@ output "rds_security_group_id" {
   value       = module.security_groups.rds_security_group_id
 }
 
-output "lambda_security_group_id" {
-  description = "ID of the Lambda security group in the primary region"
-  value       = module.security_groups.lambda_security_group_id
-}
+# Lambda outputs removed as requested
 
 # IAM Outputs
 output "ec2_role_arn" {
@@ -51,10 +48,7 @@ output "rds_role_arn" {
   value       = module.iam.rds_role_arn
 }
 
-output "lambda_role_arn" {
-  description = "ARN of the Lambda IAM role in the primary region"
-  value       = module.iam.lambda_role_arn
-}
+# Lambda outputs removed as requested
 
 # Region Output
 output "region" {
@@ -62,16 +56,7 @@ output "region" {
   value       = var.region
 }
 
-# S3 Outputs
-output "s3_primary_bucket_id" {
-  description = "ID of the primary S3 bucket"
-  value       = module.s3.primary_bucket_id
-}
-
-output "s3_dr_bucket_id" {
-  description = "ID of the DR S3 bucket"
-  value       = module.s3.dr_bucket_id
-}
+# S3 outputs removed as requested
 
 # EC2 Outputs
 output "launch_template_id" {
@@ -94,31 +79,7 @@ output "ami_id" {
   value       = module.ec2.ami_id
 }
 
-# Monitoring Outputs
-output "ec2_system_check_alarm_arn" {
-  description = "ARN of the EC2 system check alarm in the primary region"
-  value       = module.monitoring.ec2_system_check_alarm_arn
-}
-
-output "ec2_instance_check_alarm_arn" {
-  description = "ARN of the EC2 instance check alarm in the primary region"
-  value       = module.monitoring.ec2_instance_check_alarm_arn
-}
-
-output "rds_replica_lag_alarm_arn" {
-  description = "ARN of the RDS replica lag alarm in the primary region"
-  value       = module.monitoring.rds_replica_lag_alarm_arn
-}
-
-output "composite_alarm_arn" {
-  description = "ARN of the composite alarm in the primary region"
-  value       = module.monitoring.composite_alarm_arn
-}
-
-output "sns_topic_arn" {
-  description = "ARN of the SNS topic for alarm notifications in the primary region"
-  value       = module.monitoring.sns_topic_arn
-}
+# Monitoring outputs removed as requested
 
 # RDS Outputs
 output "primary_db_instance_id" {
@@ -146,4 +107,28 @@ output "backup_replication_kms_key_arn" {
   value       = module.rds.backup_replication_kms_key_arn
 }
 
-# SSM Parameter Store Outputs removed as requested
+# SSM Parameter Store Outputs
+output "db_host_parameter_name" {
+  description = "Name of the SSM parameter for database host"
+  value       = module.ssm.db_host_parameter_name
+}
+
+output "db_port_parameter_name" {
+  description = "Name of the SSM parameter for database port"
+  value       = module.ssm.db_port_parameter_name
+}
+
+output "db_name_parameter_name" {
+  description = "Name of the SSM parameter for database name"
+  value       = module.ssm.db_name_parameter_name
+}
+
+output "db_username_parameter_name" {
+  description = "Name of the SSM parameter for database username"
+  value       = module.ssm.db_username_parameter_name
+}
+
+output "db_password_parameter_name" {
+  description = "Name of the SSM parameter for database password"
+  value       = module.ssm.db_password_parameter_name
+}

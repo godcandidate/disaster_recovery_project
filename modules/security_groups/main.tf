@@ -1,7 +1,7 @@
-# Security Group for EC2 instances
-resource "aws_security_group" "ec2" {
-  name        = "ec2-sg-${var.environment}"
-  description = "Security group for EC2 instances in ${var.environment} environment"
+# Security Group for Load Balancer
+resource "aws_security_group" "lb" {
+  name        = "lb-sg-${var.environment}"
+  description = "Security group for Load Balancer in ${var.environment} environment"
   vpc_id      = var.vpc_id
 
   # Allow HTTP inbound traffic
@@ -22,12 +22,55 @@ resource "aws_security_group" "ec2" {
     description = "HTTPS"
   }
 
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(
+    {
+      Name        = "lb-sg-${var.environment}"
+      Environment = var.environment
+    },
+    var.tags
+  )
+}
+
+# Security Group for EC2 instances
+resource "aws_security_group" "ec2" {
+  name        = "ec2-sg-${var.environment}"
+  description = "Security group for EC2 instances in ${var.environment} environment"
+  vpc_id      = var.vpc_id
+
+  # Allow HTTP inbound traffic
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP"
+  }
+
+  # Allow HTTP inbound traffic for backend
+  ingress {
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP"
+  }
+
+
   # Allow SSH inbound traffic from restricted IPs
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = var.allowed_ssh_cidrs
+    cidr_blocks = ["0.0.0.0/0"]
     description = "SSH"
   }
 

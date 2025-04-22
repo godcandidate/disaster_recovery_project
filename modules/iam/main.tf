@@ -55,10 +55,10 @@ resource "aws_iam_policy" "ec2_s3_access" {
   })
 }
 
-# Policy for EC2 to access Systems Manager
+# Policy for EC2 to access SSM Parameter Store
 resource "aws_iam_policy" "ec2_ssm_access" {
   name        = "ec2-ssm-access-${var.environment}"
-  description = "Policy for EC2 instances to access Systems Manager for DR"
+  description = "Policy for EC2 instances to access SSM Parameter Store for DR"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -67,10 +67,11 @@ resource "aws_iam_policy" "ec2_ssm_access" {
         Action = [
           "ssm:GetParameter",
           "ssm:GetParameters",
-          "ssm:GetParametersByPath"
+          "ssm:DescribeParameters",
+          "kms:Decrypt"
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:ssm:*:*:parameter/dr-*"
+        Resource = "*"
       }
     ]
   })

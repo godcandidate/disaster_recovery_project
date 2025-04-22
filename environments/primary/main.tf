@@ -27,14 +27,7 @@ terraform {
   # }
 }
 
-# Data source to access DR environment outputs
-data "terraform_remote_state" "dr" {
-  backend = "local"
-  
-  config = {
-    path = "../dr/terraform.tfstate"
-  }
-}
+# This section has been muted as requested to focus on core resources
 
 locals {
   tags = merge(
@@ -59,15 +52,30 @@ module "vpc" {
   tags                 = local.tags
 }
 
-# IAM Module
+# IAM Module - Primary Region
 module "iam" {
   source = "../../modules/iam"
   
   environment    = var.environment
   primary_region = var.region
   dr_region      = var.dr_region
+  
+  tags = local.tags
+}
 
-  tags           = local.tags
+# SSM Parameter Store Module - Primary Region
+module "ssm" {
+  source = "../../modules/ssm"
+  
+  environment = var.environment
+  region      = var.region
+  db_name     = var.db_name
+  db_username = var.db_username
+  db_password = var.db_password
+  db_endpoint = module.rds.primary_db_instance_address
+  db_port     = "3306"
+  
+  tags = local.tags
 }
 
 # Security Groups Module
@@ -82,37 +90,6 @@ module "security_groups" {
   tags             = local.tags
 }
 
-# EC2 Module - Primary Region
-module "ec2" {
-  source = "../../modules/ec2"
-  
-  environment          = var.environment
-  region               = var.region
-  vpc_id               = module.vpc.vpc_id
-  subnet_ids           = module.vpc.private_subnet_ids
-  security_group_id    = module.security_groups.ec2_security_group_id
-  instance_type        = var.instance_type
-  key_name             = var.key_name
-  instance_profile_name = module.iam.ec2_instance_profile_name
-  min_size             = 1
-  max_size             = 3
-  desired_capacity     = 1
-  is_pilot_light       = false
-  
-  # User data script for EC2 instances
-  user_data = templatefile("../../modules/templates/primary_userdata.tpl", {
-    environment = var.environment
-    region      = var.region
-    DB_NAME     = var.db_name
-    DB_USER     = var.db_username
-    DB_PASSWORD = var.db_password
-    DB_HOST     = module.rds.primary_db_instance_address
-    EC2_IP      = "dummy" # This will be replaced at runtime by the script
-  })
-  
-  tags = local.tags
-}
-
 # AMI Builder Instance - For creating a pre-configured AMI
 resource "aws_instance" "ami_builder" {
   ami                    = data.aws_ami.amazon_linux.id
@@ -121,15 +98,16 @@ resource "aws_instance" "ami_builder" {
   vpc_security_group_ids = [module.security_groups.ec2_security_group_id]
   key_name               = var.key_name
   iam_instance_profile   = module.iam.ec2_instance_profile_name
+  associate_public_ip_address = true
   
   user_data = templatefile("../../modules/templates/primary_userdata.tpl", {
-    environment = var.environment
-    region      = var.region
-    DB_NAME     = var.db_name
-    DB_USER     = var.db_username
-    DB_PASSWORD = var.db_password
-    DB_HOST     = module.rds.primary_db_instance_address
-    EC2_IP      = "dummy" # This will be replaced at runtime by the script
+    REGION           = var.region
+    DB_HOST_PARAM    = module.ssm.db_host_parameter_name
+    DB_PORT_PARAM    = module.ssm.db_port_parameter_name
+    DB_NAME_PARAM    = module.ssm.db_name_parameter_name
+    DB_USER_PARAM    = module.ssm.db_username_parameter_name
+    DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
+    EC2_IP           = "dummy" # Will be replaced at runtime by the script
   })
   
   tags = merge(
@@ -137,6 +115,7 @@ resource "aws_instance" "ami_builder" {
     {
       Name    = "dr-ami-builder-${var.environment}"
       Purpose = "AMI Creation"
+      "aws:autoscaling:groupName" = "none" # Prevents registration with target groups
     }
   )
   
@@ -173,12 +152,45 @@ module "ami" {
   region              = var.region
   source_instance_id  = aws_instance.ami_builder.id
   snapshot_without_reboot = true
-  dr_region           = var.dr_region # Copy AMI to DR region
+  dr_region           = "" # Disable copying to DR region as requested
   
   tags = local.tags
   
   # Only create the AMI after the builder instance is fully provisioned
   depends_on = [aws_instance.ami_builder]
+}
+
+# EC2 Module - Primary Region
+module "ec2" {
+  source = "../../modules/ec2"
+  
+  environment         = var.environment
+  region              = var.region
+  vpc_id              = module.vpc.vpc_id
+  subnet_ids          = module.vpc.public_subnet_ids
+  security_group_id    = module.security_groups.ec2_security_group_id
+  instance_type        = var.instance_type
+  key_name             = var.key_name
+  instance_profile_name = module.iam.ec2_instance_profile_name
+  ami_id               = module.ami.ami_id  # Use the AMI created by the AMI module
+  min_size             = 1
+  max_size             = 3
+  desired_capacity     = 1
+  is_pilot_light       = false
+  target_group_arns    = [module.load_balancer.target_group_arn]
+  
+  # User data script for EC2 instances - using SSM parameters instead of direct credentials
+  user_data = templatefile("../../modules/templates/primary_userdata.tpl", {
+    REGION           = var.region
+    DB_HOST_PARAM    = module.ssm.db_host_parameter_name
+    DB_PORT_PARAM    = module.ssm.db_port_parameter_name
+    DB_NAME_PARAM    = module.ssm.db_name_parameter_name
+    DB_USER_PARAM    = module.ssm.db_username_parameter_name
+    DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
+    EC2_IP           = "dummy" # Will be replaced at runtime by the script
+  })
+  
+  tags = local.tags
 }
 
 # RDS Module - Primary Region
@@ -198,44 +210,24 @@ module "rds" {
   db_engine              = var.db_engine
   db_engine_version      = var.db_engine_version
   db_allocated_storage   = var.db_allocated_storage
-  db_multi_az            = false
+  db_multi_az            = false  # Disable Multi-AZ for high availability
   db_backup_retention_period = 7
-  enable_cross_region_backup = false
+  enable_cross_region_backup = false  # Disable cross-region backup for DR
   is_read_replica        = false
   
   tags = local.tags
 }
 
-# S3 Module - Primary Region with Cross-Region Replication to DR
-module "s3" {
-  source = "../../modules/s3"
+# Load Balancer Module - Primary Region
+module "load_balancer" {
+  source = "../../modules/load_balancer"
   
-  environment = var.environment
-  region      = var.region
-  dr_region   = var.dr_region
-  bucket_name = "storage-${var.environment}"
-  replication_role_arn = module.iam.s3_replication_role_arn
-  
-  providers = {
-    aws    = aws
-    aws.dr = aws.dr
-  }
+  environment       = var.environment
+  vpc_id            = module.vpc.vpc_id
+  subnet_ids        = module.vpc.public_subnet_ids
+  security_group_id = module.security_groups.lb_security_group_id
   
   tags = local.tags
 }
 
-# Monitoring Module - Primary Region
-module "monitoring" {
-  source = "../../modules/monitoring"
-  
-  environment        = var.environment
-  region             = var.region
-  asg_name           = module.ec2.autoscaling_group_id
-  rds_primary_id     = module.rds.primary_db_instance_id
-  rds_read_replica_id = module.rds.read_replica_db_instance_id
-  sns_topic_arn      = ""  # Will be created by the module
-  api_gateway_execution_arn = data.terraform_remote_state.dr.outputs.api_gateway_execution_arn
-  api_gateway_invoke_url    = data.terraform_remote_state.dr.outputs.api_gateway_invoke_url
-  
-  tags = local.tags
-}
+# This section has been muted as requested to focus on core resources
