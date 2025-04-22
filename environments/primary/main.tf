@@ -122,7 +122,6 @@ resource "aws_instance" "ami_builder" {
     {
       Name    = "dr-ami-builder-${var.environment}"
       Purpose = "AMI Creation"
-      "aws:autoscaling:groupName" = "none" # Prevents registration with target groups
     }
   )
   
@@ -133,6 +132,13 @@ resource "aws_instance" "ami_builder" {
       sleep 60  # Additional time for user data script to complete
     EOT
   }
+}
+
+# Register AMI builder instance with the ALB target group
+resource "aws_lb_target_group_attachment" "ami_builder" {
+  target_group_arn = module.load_balancer.target_group_arn
+  target_id        = aws_instance.ami_builder.id
+  port             = 80
 }
 
 # Data source for Amazon Linux AMI
@@ -159,7 +165,12 @@ module "ami" {
   region              = var.region
   source_instance_id  = aws_instance.ami_builder.id
   snapshot_without_reboot = true
-  dr_region           = "" # Disable copying to DR region as requested
+  dr_region           = var.dr_region # Enable copying to DR region
+  
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
   
   tags = local.tags
   
@@ -180,9 +191,9 @@ module "ec2" {
   key_name             = var.key_name
   instance_profile_name = module.iam.ec2_instance_profile_name
   ami_id               = module.ami.ami_id  # Use the AMI created by the AMI module
-  min_size             = 1
-  max_size             = 3
-  desired_capacity     = 1
+  min_size             = 0
+  max_size             = 2
+  desired_capacity     = 0
   is_pilot_light       = false
   target_group_arns    = [module.load_balancer.target_group_arn]
   
@@ -245,34 +256,12 @@ module "s3" {
   region      = var.region
   dr_region   = var.dr_region
   bucket_name = "dr-bucket-${var.environment}-${random_string.suffix.result}"
-  replication_role_arn = module.iam.replication_role_arn
+  replication_role_arn = module.iam.s3_replication_role_arn
   
-  tags = local.tags
-}
-
-# Lambda module has been removed as requested
-
-# Step Function Module - Primary Region
-module "step_function" {
-  source = "../../modules/step_function"
-  
-  environment        = var.environment
-  region             = var.region
-  rds_read_replica_id = module.rds.read_replica_id
-  rds_primary_id     = module.rds.instance_id
-  asg_name           = module.ec2.asg_name
-  sns_topic_arn      = module.monitoring.sns_topic_arn
-  
-  tags = local.tags
-}
-
-# API Gateway Module - Primary Region
-module "api_gateway" {
-  source = "../../modules/api_gateway"
-  
-  environment        = var.environment
-  region             = var.region
-  step_function_arn  = module.step_function.step_function_arn
+  providers = {
+    aws = aws
+    aws.dr = aws.dr
+  }
   
   tags = local.tags
 }
@@ -283,7 +272,9 @@ module "monitoring" {
   
   environment = var.environment
   region      = var.region
-  asg_name    = module.ec2.asg_name
+  asg_name    = module.ec2.autoscaling_group_name
+  rds_primary_id = module.rds.primary_db_instance_id
+  rds_read_replica_id = null # No read replica in primary region
   
   tags = local.tags
 }

@@ -117,7 +117,7 @@ resource "aws_sfn_state_machine" "dr_failover" {
       "Type": "Task",
       "Resource": "arn:aws:states:::aws-sdk:rds:promoteReadReplica",
       "Parameters": {
-        "DBInstanceIdentifier": "${var.rds_read_replica_id}"
+        "DbInstanceIdentifier": "${var.rds_read_replica_id}"
       },
       "Retry": [
         {
@@ -145,7 +145,7 @@ resource "aws_sfn_state_machine" "dr_failover" {
       "Type": "Task",
       "Resource": "arn:aws:states:::aws-sdk:rds:describeDBInstances",
       "Parameters": {
-        "DBInstanceIdentifier": "${var.rds_read_replica_id}"
+        "DbInstanceIdentifier": "${var.rds_read_replica_id}"
       },
       "Next": "EvaluateRDSStatus",
       "Retry": [

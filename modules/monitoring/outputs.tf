@@ -37,8 +37,3 @@ output "sns_topic_arn" {
   description = "ARN of the SNS topic for alarm notifications"
   value       = aws_sns_topic.dr_alarms.arn
 }
-
-output "cloudwatch_api_gateway_role_arn" {
-  description = "ARN of the IAM role for CloudWatch to invoke API Gateway"
-  value       = aws_iam_role.cloudwatch_api_gateway.arn
-}

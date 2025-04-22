@@ -196,95 +196,7 @@ resource "aws_iam_role" "lambda_dr_role" {
   )
 }
 
-# Policy for Lambda to access S3
-resource "aws_iam_policy" "lambda_s3_access" {
-  name        = "lambda-s3-access-${var.environment}"
-  description = "Policy for Lambda functions to access S3 for DR"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
-        ]
-        Effect   = "Allow"
-        Resource = [
-          "arn:aws:s3:::dr-*",
-          "arn:aws:s3:::dr-*/*"
-        ]
-      }
-    ]
-  })
-}
-
-# Policy for Lambda to access CloudWatch
-resource "aws_iam_policy" "lambda_cloudwatch_access" {
-  name        = "lambda-cloudwatch-access-${var.environment}"
-  description = "Policy for Lambda functions to access CloudWatch for DR"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Effect   = "Allow"
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
-  })
-}
-
-# Policy for Lambda to access Parameter Store/Secrets Manager
-resource "aws_iam_policy" "lambda_secrets_access" {
-  name        = "lambda-secrets-access-${var.environment}"
-  description = "Policy for Lambda functions to access Parameter Store/Secrets Manager for DR"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "ssm:GetParameter",
-          "ssm:GetParameters",
-          "ssm:GetParametersByPath"
-        ]
-        Effect   = "Allow"
-        Resource = "arn:aws:ssm:*:*:parameter/dr-*"
-      },
-      {
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
-        ]
-        Effect   = "Allow"
-        Resource = "arn:aws:secretsmanager:*:*:secret:dr-*"
-      }
-    ]
-  })
-}
-
-# Attach policies to Lambda role
-resource "aws_iam_role_policy_attachment" "lambda_s3_attachment" {
-  role       = aws_iam_role.lambda_dr_role.name
-  policy_arn = aws_iam_policy.lambda_s3_access.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_cloudwatch_attachment" {
-  role       = aws_iam_role.lambda_dr_role.name
-  policy_arn = aws_iam_policy.lambda_cloudwatch_access.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_secrets_attachment" {
-  role       = aws_iam_role.lambda_dr_role.name
-  policy_arn = aws_iam_policy.lambda_secrets_access.arn
-}
 
 # Cross-region role assumption policy
 resource "aws_iam_policy" "cross_region_assume_role" {
@@ -314,10 +226,6 @@ resource "aws_iam_role_policy_attachment" "rds_cross_region_attachment" {
   policy_arn = aws_iam_policy.cross_region_assume_role.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_cross_region_attachment" {
-  role       = aws_iam_role.lambda_dr_role.name
-  policy_arn = aws_iam_policy.cross_region_assume_role.arn
-}
 
 # S3 Replication IAM Role
 resource "aws_iam_role" "s3_replication_role" {

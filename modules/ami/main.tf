@@ -40,6 +40,7 @@ resource "aws_ami_launch_permission" "share_ami" {
 
 # Copy AMI to DR region if specified
 resource "aws_ami_copy" "dr_region" {
+  provider          = aws.dr
   count             = var.dr_region != "" ? 1 : 0
   name              = "dr-ami-${var.environment}-copy-${substr(aws_ami_from_instance.this.id, -8, 8)}"
   source_ami_id     = aws_ami_from_instance.this.id

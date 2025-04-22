@@ -50,7 +50,7 @@ variable "instance_type" {
 variable "key_name" {
   description = "Name of the SSH key pair"
   type        = string
-  default     = "dr-key-pair"
+  default     = "labs"
 }
 
 # RDS Configuration

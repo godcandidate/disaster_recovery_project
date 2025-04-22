@@ -29,6 +29,12 @@ variable "security_group_id" {
   type        = string
 }
 
+variable "dr_security_group_id" {
+  description = "Security group ID for RDS read replica in DR region"
+  type        = string
+  default     = null
+}
+
 variable "db_name" {
   description = "Name of the database"
   type        = string

@@ -1,3 +1,6 @@
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # RDS Subnet Group
 resource "aws_db_subnet_group" "this" {
   name        = "dr-db-subnet-group-${var.environment}"
@@ -81,11 +84,12 @@ resource "aws_db_instance" "read_replica" {
   count = var.environment == "dr" && var.is_read_replica ? 1 : 0
 
   identifier                  = "dr-db-${var.environment}-replica"
-  replicate_source_db         = var.source_db_instance_identifier
+  replicate_source_db         = "arn:aws:rds:${var.primary_region}:${data.aws_caller_identity.current.account_id}:db:${var.source_db_instance_identifier}"
   instance_class              = var.db_instance_class
   parameter_group_name        = aws_db_parameter_group.this.name
   # Option group removed as requested
   vpc_security_group_ids      = [var.security_group_id]
+  db_subnet_group_name        = aws_db_subnet_group.this.name
   auto_minor_version_upgrade  = true
   backup_retention_period     = var.db_backup_retention_period
   backup_window               = var.db_backup_window
@@ -95,7 +99,6 @@ resource "aws_db_instance" "read_replica" {
   copy_tags_to_snapshot       = true
   deletion_protection         = true
   enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
-  performance_insights_enabled = true
 
   tags = merge(
     {
@@ -121,7 +124,7 @@ resource "aws_kms_key" "backup_replication" {
   count = var.environment == "primary" && var.enable_cross_region_backup ? 1 : 0
 
   description             = "KMS key for RDS backup replication from ${var.primary_region} to ${var.region}"
-  deletion_window_in_days = 30
+  deletion_window_in_days = 7
   enable_key_rotation     = true
 
   tags = merge(
