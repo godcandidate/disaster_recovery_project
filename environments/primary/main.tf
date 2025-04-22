@@ -38,6 +38,13 @@ locals {
   )
 }
 
+# Random string for unique S3 bucket names
+resource "random_string" "suffix" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
 # VPC Module
 module "vpc" {
   source = "../../modules/vpc"
@@ -230,4 +237,53 @@ module "load_balancer" {
   tags = local.tags
 }
 
-# This section has been muted as requested to focus on core resources
+# S3 Module - Primary Region
+module "s3" {
+  source = "../../modules/s3"
+  
+  environment = var.environment
+  region      = var.region
+  dr_region   = var.dr_region
+  bucket_name = "dr-bucket-${var.environment}-${random_string.suffix.result}"
+  replication_role_arn = module.iam.replication_role_arn
+  
+  tags = local.tags
+}
+
+# Lambda module has been removed as requested
+
+# Step Function Module - Primary Region
+module "step_function" {
+  source = "../../modules/step_function"
+  
+  environment        = var.environment
+  region             = var.region
+  rds_read_replica_id = module.rds.read_replica_id
+  rds_primary_id     = module.rds.instance_id
+  asg_name           = module.ec2.asg_name
+  sns_topic_arn      = module.monitoring.sns_topic_arn
+  
+  tags = local.tags
+}
+
+# API Gateway Module - Primary Region
+module "api_gateway" {
+  source = "../../modules/api_gateway"
+  
+  environment        = var.environment
+  region             = var.region
+  step_function_arn  = module.step_function.step_function_arn
+  
+  tags = local.tags
+}
+
+# Monitoring Module - Primary Region
+module "monitoring" {
+  source = "../../modules/monitoring"
+  
+  environment = var.environment
+  region      = var.region
+  asg_name    = module.ec2.asg_name
+  
+  tags = local.tags
+}
