@@ -168,26 +168,39 @@ module "s3" {
   tags = local.tags
 }
 
-# Lambda Module - DR Region (Disabled)
-module "lambda" {
-  source = "../../modules/lambda"
+# SNS Topic for DR notifications
+resource "aws_sns_topic" "dr_notifications" {
+  name = "dr-notifications-${var.environment}"
   
-  environment = var.environment
-  region      = var.region
-  function_name = "tasks-due-tomorrow"
-  s3_bucket_id = module.s3.primary_bucket_id
-  vpc_id      = module.vpc.vpc_id
-  subnet_ids  = module.vpc.private_subnet_ids
-  db_host     = module.rds.read_replica_db_instance_address
-  db_username = var.db_username
-  db_password = var.db_password
-  db_name     = var.db_name
-  enabled     = false  # Disabled in DR region
-  build_locally = false  # Use the package from the primary region
-  lambda_role_arn = module.iam.lambda_role_arn
+  tags = merge(
+    {
+      Name        = "dr-notifications-${var.environment}"
+      Environment = var.environment
+    },
+    local.tags
+  )
+}
+
+# Step Function Module - DR Region
+module "step_function" {
+  source = "../../modules/step_function"
+  
+  environment        = var.environment
+  region             = var.region
+  rds_read_replica_id = module.rds.read_replica_db_instance_id
+  asg_name           = module.ec2.autoscaling_group_id
+  sns_topic_arn      = aws_sns_topic.dr_notifications.arn
   
   tags = local.tags
+}
+
+# API Gateway Module - DR Region
+module "api_gateway" {
+  source = "../../modules/api_gateway"
   
-  # Ensure S3 bucket is created before Lambda
-  depends_on = [module.s3]
+  environment       = var.environment
+  region            = var.region
+  step_function_arn = module.step_function.step_function_arn
+  
+  tags = local.tags
 }

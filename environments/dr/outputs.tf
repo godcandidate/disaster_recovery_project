@@ -30,11 +30,6 @@ output "rds_security_group_id" {
   value       = module.security_groups.rds_security_group_id
 }
 
-output "lambda_security_group_id" {
-  description = "ID of the Lambda security group in the DR region"
-  value       = module.security_groups.lambda_security_group_id
-}
-
 # IAM Outputs
 output "ec2_role_arn" {
   description = "ARN of the EC2 IAM role in the DR region"
@@ -49,11 +44,6 @@ output "ec2_instance_profile_name" {
 output "rds_role_arn" {
   description = "ARN of the RDS IAM role in the DR region"
   value       = module.iam.rds_role_arn
-}
-
-output "lambda_role_arn" {
-  description = "ARN of the Lambda IAM role in the DR region"
-  value       = module.iam.lambda_role_arn
 }
 
 # EC2 Outputs - Pilot Light
@@ -100,4 +90,35 @@ output "read_replica_db_instance_endpoint" {
 output "region" {
   description = "DR region"
   value       = var.region
+}
+
+# DR Testing and Validation Outputs
+output "step_function_arn" {
+  description = "ARN of the DR failover Step Function"
+  value       = module.step_function.step_function_arn
+}
+
+output "step_function_name" {
+  description = "Name of the DR failover Step Function"
+  value       = module.step_function.step_function_name
+}
+
+output "api_gateway_id" {
+  description = "ID of the DR failover API Gateway"
+  value       = module.api_gateway.api_gateway_id
+}
+
+output "api_gateway_execution_arn" {
+  description = "Execution ARN of the DR failover API Gateway"
+  value       = module.api_gateway.api_gateway_execution_arn
+}
+
+output "api_gateway_invoke_url" {
+  description = "URL to invoke the DR failover API Gateway endpoint"
+  value       = module.api_gateway.api_gateway_invoke_url
+}
+
+output "sns_topic_arn" {
+  description = "ARN of the SNS topic for DR notifications"
+  value       = aws_sns_topic.dr_notifications.arn
 }

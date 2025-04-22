@@ -27,6 +27,15 @@ terraform {
   # }
 }
 
+# Data source to access DR environment outputs
+data "terraform_remote_state" "dr" {
+  backend = "local"
+  
+  config = {
+    path = "../dr/terraform.tfstate"
+  }
+}
+
 locals {
   tags = merge(
     var.tags,
@@ -197,8 +206,6 @@ module "rds" {
   tags = local.tags
 }
 
-# SSM Module removed as requested
-
 # S3 Module - Primary Region with Cross-Region Replication to DR
 module "s3" {
   source = "../../modules/s3"
@@ -217,25 +224,18 @@ module "s3" {
   tags = local.tags
 }
 
-# Lambda Module - Primary Region (Enabled)
-module "lambda" {
-  source = "../../modules/lambda"
+# Monitoring Module - Primary Region
+module "monitoring" {
+  source = "../../modules/monitoring"
   
-  environment = var.environment
-  region      = var.region
-  function_name = "tasks-due-tomorrow"
-  s3_bucket_id = module.s3.primary_bucket_id
-  vpc_id      = module.vpc.vpc_id
-  subnet_ids  = module.vpc.private_subnet_ids
-  db_host     = module.rds.primary_db_instance_address
-  db_username = var.db_username
-  db_password = var.db_password
-  db_name     = var.db_name
-  enabled     = true  # Enabled in primary region
-  build_locally = true
-  lambda_role_arn = module.iam.lambda_role_arn
+  environment        = var.environment
+  region             = var.region
+  asg_name           = module.ec2.autoscaling_group_id
+  rds_primary_id     = module.rds.primary_db_instance_id
+  rds_read_replica_id = module.rds.read_replica_db_instance_id
+  sns_topic_arn      = ""  # Will be created by the module
+  api_gateway_execution_arn = data.terraform_remote_state.dr.outputs.api_gateway_execution_arn
+  api_gateway_invoke_url    = data.terraform_remote_state.dr.outputs.api_gateway_invoke_url
   
   tags = local.tags
-  
-
 }

@@ -51,6 +51,11 @@ output "rds_role_arn" {
   value       = module.iam.rds_role_arn
 }
 
+output "lambda_role_arn" {
+  description = "ARN of the Lambda IAM role in the primary region"
+  value       = module.iam.lambda_role_arn
+}
+
 # Region Output
 output "region" {
   description = "AWS region for the primary environment"
@@ -66,27 +71,6 @@ output "s3_primary_bucket_id" {
 output "s3_dr_bucket_id" {
   description = "ID of the DR S3 bucket"
   value       = module.s3.dr_bucket_id
-}
-
-# Lambda Outputs
-output "lambda_function_name" {
-  description = "Name of the Lambda function in the primary region"
-  value       = module.lambda.lambda_function_name
-}
-
-output "lambda_function_arn" {
-  description = "ARN of the Lambda function in the primary region"
-  value       = module.lambda.lambda_function_arn
-}
-
-output "lambda_enabled" {
-  description = "Whether the Lambda function is enabled in the primary region"
-  value       = module.lambda.lambda_enabled
-}
-
-output "lambda_role_arn" {
-  description = "ARN of the Lambda IAM role in the primary region"
-  value       = module.iam.lambda_role_arn
 }
 
 # EC2 Outputs
@@ -108,6 +92,32 @@ output "autoscaling_group_name" {
 output "ami_id" {
   description = "AMI ID used for EC2 instances in the primary region"
   value       = module.ec2.ami_id
+}
+
+# Monitoring Outputs
+output "ec2_system_check_alarm_arn" {
+  description = "ARN of the EC2 system check alarm in the primary region"
+  value       = module.monitoring.ec2_system_check_alarm_arn
+}
+
+output "ec2_instance_check_alarm_arn" {
+  description = "ARN of the EC2 instance check alarm in the primary region"
+  value       = module.monitoring.ec2_instance_check_alarm_arn
+}
+
+output "rds_replica_lag_alarm_arn" {
+  description = "ARN of the RDS replica lag alarm in the primary region"
+  value       = module.monitoring.rds_replica_lag_alarm_arn
+}
+
+output "composite_alarm_arn" {
+  description = "ARN of the composite alarm in the primary region"
+  value       = module.monitoring.composite_alarm_arn
+}
+
+output "sns_topic_arn" {
+  description = "ARN of the SNS topic for alarm notifications in the primary region"
+  value       = module.monitoring.sns_topic_arn
 }
 
 # RDS Outputs
