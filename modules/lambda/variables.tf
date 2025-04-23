@@ -24,6 +24,12 @@ variable "api_gateway_execution_arn" {
   default     = null
 }
 
+variable "sns_topic_arn" {
+  description = "ARN of the SNS topic for notifications"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)

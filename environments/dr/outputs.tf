@@ -57,10 +57,11 @@ output "autoscaling_group_id" {
   value       = module.ec2.autoscaling_group_id
 }
 
-output "pilot_light_instance_id" {
-  description = "ID of the pilot light EC2 instance in the DR region"
-  value       = module.ec2.pilot_light_instance_id
-}
+# Removed as we're using Auto Scaling Group for failover
+# output "pilot_light_instance_id" {
+#   description = "ID of the pilot light EC2 instance in the DR region"
+#   value       = module.ec2.pilot_light_instance_id
+# }
 
 output "ami_id" {
   description = "AMI ID used for EC2 instances in the DR region"

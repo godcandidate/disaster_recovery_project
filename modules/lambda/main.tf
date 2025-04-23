@@ -68,6 +68,25 @@ resource "aws_iam_policy" "lambda_logs_policy" {
   })
 }
 
+# IAM Policy for Lambda SNS
+resource "aws_iam_policy" "lambda_sns_policy" {
+  name        = "dr-lambda-sns-policy-${var.environment}"
+  description = "Policy for Lambda to send SNS notifications"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "sns:Publish"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Attach policies to role
 resource "aws_iam_role_policy_attachment" "lambda_asg_attachment" {
   role       = aws_iam_role.lambda_role.name
@@ -77,6 +96,11 @@ resource "aws_iam_role_policy_attachment" "lambda_asg_attachment" {
 resource "aws_iam_role_policy_attachment" "lambda_logs_attachment" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_logs_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sns_attachment" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_sns_policy.arn
 }
 
 # Lambda function for DR failover
@@ -96,6 +120,7 @@ resource "aws_lambda_function" "dr_failover" {
       AUTO_SCALING_GROUP_NAME = var.asg_name
       TARGET_GROUP_ARN        = var.target_group_arn
       DESIRED_CAPACITY        = "1"
+      SNS_TOPIC_ARN           = var.sns_topic_arn == null ? "" : var.sns_topic_arn
     }
   }
   
@@ -119,10 +144,12 @@ const AWS = require('aws-sdk');
 
 exports.handler = async (event) => {
     const autoscaling = new AWS.AutoScaling();
+    const sns = new AWS.SNS();
     
     // Get environment variables
     const asgName = process.env.AUTO_SCALING_GROUP_NAME;
     const desiredCapacity = process.env.DESIRED_CAPACITY;
+    const snsTopicArn = process.env.SNS_TOPIC_ARN;
     
     console.log('Updating Auto Scaling Group ' + asgName + ' to desired capacity ' + desiredCapacity);
     
@@ -136,6 +163,16 @@ exports.handler = async (event) => {
         
         console.log('Auto Scaling Group updated successfully');
         
+        // Send success notification
+        if (snsTopicArn) {
+            await sns.publish({
+                TopicArn: snsTopicArn,
+                Subject: 'DR Failover Success',
+                Message: 'Disaster Recovery failover completed successfully!\n\nAuto Scaling Group ' + asgName + ' has been scaled to ' + desiredCapacity + ' instance(s).\n\nTime: ' + new Date().toISOString() + '\n\nThis is an automated message from your DR infrastructure.'
+            }).promise();
+            console.log('Success notification sent');
+        }
+        
         return {
             statusCode: 200,
             body: JSON.stringify({
@@ -146,6 +183,20 @@ exports.handler = async (event) => {
         };
     } catch (error) {
         console.error('Error updating Auto Scaling Group:', error);
+        
+        // Send failure notification
+        if (snsTopicArn) {
+            try {
+                await sns.publish({
+                    TopicArn: snsTopicArn,
+                    Subject: 'DR Failover Failed',
+                    Message: 'Disaster Recovery failover failed!\n\nError: ' + error.message + '\n\nTime: ' + new Date().toISOString() + '\n\nPlease check the CloudWatch logs for more details.\n\nThis is an automated message from your DR infrastructure.'
+                }).promise();
+                console.log('Failure notification sent');
+            } catch (snsError) {
+                console.error('Error sending SNS notification:', snsError);
+            }
+        }
         
         return {
             statusCode: 500,
@@ -159,4 +210,14 @@ exports.handler = async (event) => {
 EOF
     filename = "index.js"
   }
+  
+  source {
+    content  = <<EOF
+AUTO_SCALING_GROUP_NAME=${var.asg_name}
+DESIRED_CAPACITY=1
+SNS_TOPIC_ARN=${var.sns_topic_arn == null ? "" : var.sns_topic_arn}
+EOF
+    filename = ".env"
+  }
+  
 }

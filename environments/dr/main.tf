@@ -91,30 +91,30 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Custom AMI data source commented out to allow destroy to complete
-# data "aws_ami" "dr_ami" {
-#   most_recent = true
-#   owners      = ["self"]
-#
-#   filter {
-#     name   = "name"
-#     values = ["dr-ami-primary-*"]
-#   }
-#
-#   filter {
-#     name   = "state"
-#     values = ["available"]
-#   }
-# }
+# Custom AMI data source for the copied AMI from primary region
+data "aws_ami" "dr_ami" {
+  most_recent = true
+  owners      = ["self"]
 
-# EC2 Module - DR Region (Pilot Light)
+  filter {
+    name   = "name"
+    values = ["dr-ami-primary-*"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
+# EC2 Module - DR Region (Auto Scaling Group only)
 module "ec2" {
   source = "../../modules/ec2"
   
   environment          = var.environment
   region               = var.region
   vpc_id               = module.vpc.vpc_id
-  subnet_ids           = module.vpc.private_subnet_ids
+  subnet_ids           = module.vpc.public_subnet_ids
   security_group_id    = module.security_groups.ec2_security_group_id
   instance_type        = var.instance_type
   key_name             = var.key_name
@@ -122,21 +122,21 @@ module "ec2" {
   min_size             = 0
   max_size             = 2
   desired_capacity     = 0
-  is_pilot_light       = true
-  # Use Amazon Linux AMI directly since custom AMI is no longer available
-  ami_id               = data.aws_ami.amazon_linux.id
+  is_pilot_light       = false
+  # Use the copied AMI from primary region, with fallback to Amazon Linux AMI
+  ami_id               = try(data.aws_ami.dr_ami.id, data.aws_ami.amazon_linux.id)
   
   # User data script for EC2 instances
   # Minimal user data since most setup is already in the AMI
-  user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
-    environment = var.environment
-    region      = var.region
-    DB_NAME     = var.db_name
-    DB_USER     = var.db_username
-    DB_PASSWORD = var.db_password
-    DB_HOST     = module.rds.read_replica_db_instance_address
-    EC2_IP      = "dummy" # This will be replaced at runtime by the script
-  })
+  # user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
+  #   environment = var.environment
+  #   region      = var.region
+  #   DB_NAME     = var.db_name
+  #   DB_USER     = var.db_username
+  #   DB_PASSWORD = var.db_password
+  #   DB_HOST     = module.rds.read_replica_db_instance_address
+  #   EC2_IP      = "dummy" # This will be replaced at runtime by the script
+  # })
   
   tags = local.tags
 }
@@ -173,7 +173,7 @@ module "rds" {
   db_multi_az            = var.db_multi_az # Single AZ for read replica is sufficient
   db_backup_retention_period = 1
   enable_cross_region_backup = false
-  is_read_replica        = true
+  is_read_replica        = false # Set to false to skip creating a new read replica
   source_db_instance_identifier = var.primary_db_instance_id
   
   tags = local.tags
@@ -201,13 +201,14 @@ module "s3" {
 resource "aws_sns_topic" "dr_notifications" {
   name = "dr-notifications-${var.environment}"
   
-  tags = merge(
-    {
-      Name        = "dr-notifications-${var.environment}"
-      Environment = var.environment
-    },
-    local.tags
-  )
+  tags = local.tags
+}
+
+# SNS Topic Subscription for email notifications
+resource "aws_sns_topic_subscription" "dr_email_subscription" {
+  topic_arn = aws_sns_topic.dr_notifications.arn
+  protocol  = "email"
+  endpoint  = "godcandidate101@gmail.com"
 }
 
 # Monitoring Module
@@ -232,6 +233,7 @@ module "lambda" {
   region                 = var.region
   asg_name               = module.ec2.autoscaling_group_name
   target_group_arn       = module.load_balancer.target_group_arn
+  sns_topic_arn          = aws_sns_topic.dr_notifications.arn
   
   tags = local.tags
 }

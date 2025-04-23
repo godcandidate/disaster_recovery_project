@@ -23,9 +23,10 @@ output "ami_id" {
   value       = local.ami_id
 }
 
-output "pilot_light_instance_id" {
-  description = "ID of the pilot light instance in DR region"
-  value       = var.is_pilot_light && var.environment == "dr" ? aws_instance.pilot_light[0].id : null
-}
+# Removed as we're using Auto Scaling Group for failover
+# output "pilot_light_instance_id" {
+#   description = "ID of the pilot light instance in DR region"
+#   value       = var.is_pilot_light && var.environment == "dr" ? aws_instance.pilot_light[0].id : null
+# }
 
 # AMI builder functionality moved to standalone EC2 instance in primary environment

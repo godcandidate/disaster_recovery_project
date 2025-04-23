@@ -80,10 +80,10 @@ resource "aws_autoscaling_group" "this" {
     version = "$Latest"
   }
 
-  # For Pilot Light in DR region, we want the instances to be created but stopped
-  suspended_processes = var.is_pilot_light && var.environment == "dr" ? [
-    "Launch", "Terminate", "HealthCheck", "ReplaceUnhealthy", "AZRebalance", "AlarmNotification", "ScheduledActions", "AddToLoadBalancer"
-  ] : []
+  # We no longer suspend processes since we're using ASG-based failover
+  # The ASG will have desired capacity = 0 during normal operation
+  # and will be scaled up by the Lambda function during failover
+  suspended_processes = []
 
   instance_refresh {
     strategy = "Rolling"
@@ -115,40 +115,6 @@ resource "aws_autoscaling_group" "this" {
 
   lifecycle {
     create_before_destroy = true
-  }
-}
-
-# If this is a Pilot Light setup in DR region, create a stopped EC2 instance
-resource "aws_instance" "pilot_light" {
-  count = var.is_pilot_light && var.environment == "dr" ? 1 : 0
-
-  ami                    = local.ami_id
-  instance_type          = var.instance_type
-  subnet_id              = var.subnet_ids[0]
-  vpc_security_group_ids = [var.security_group_id]
-  key_name               = var.key_name
-  user_data              = var.user_data
-  iam_instance_profile   = var.instance_profile_name
-
-  # Instance is created in a stopped state
-  instance_initiated_shutdown_behavior = "stop"
-
-  tags = merge(
-    {
-      Name        = "dr-pilot-light-${var.environment}"
-      Environment = var.environment
-      PilotLight  = "true"
-    },
-    var.tags
-  )
-
-  # Ensure the instance is stopped after creation
-  provisioner "local-exec" {
-    command = "aws ec2 stop-instances --instance-ids ${self.id} --region ${var.region}"
-  }
-
-  lifecycle {
-    ignore_changes = [ami]
   }
 }
 

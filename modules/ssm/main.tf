@@ -31,9 +31,9 @@ locals {
 resource "aws_ssm_parameter" "db_host" {
   name        = "${local.parameter_prefix}/host"
   description = "Database host for ${var.environment} environment"
-  type        = "SecureString"
-  value       = var.db_endpoint
-  key_id      = local.kms_key_id
+  type        = "String"
+  value       = var.db_endpoint != null ? var.db_endpoint : "pending-endpoint"
+  # No KMS key for String type
 
   tags = merge(
     {
@@ -47,9 +47,9 @@ resource "aws_ssm_parameter" "db_host" {
 resource "aws_ssm_parameter" "db_port" {
   name        = "${local.parameter_prefix}/port"
   description = "Database port for ${var.environment} environment"
-  type        = "SecureString"
+  type        = "String"
   value       = var.db_port
-  key_id      = local.kms_key_id
+  # No KMS key for String type
 
   tags = merge(
     {
@@ -63,9 +63,9 @@ resource "aws_ssm_parameter" "db_port" {
 resource "aws_ssm_parameter" "db_name" {
   name        = "${local.parameter_prefix}/name"
   description = "Database name for ${var.environment} environment"
-  type        = "SecureString"
+  type        = "String"
   value       = var.db_name
-  key_id      = local.kms_key_id
+  # No KMS key for String type
 
   tags = merge(
     {
@@ -81,7 +81,7 @@ resource "aws_ssm_parameter" "db_username" {
   description = "Database username for ${var.environment} environment"
   type        = "SecureString"
   value       = var.db_username
-  key_id      = local.kms_key_id
+  # Using default AWS KMS key for SecureString
 
   tags = merge(
     {
@@ -97,7 +97,7 @@ resource "aws_ssm_parameter" "db_password" {
   description = "Database password for ${var.environment} environment"
   type        = "SecureString"
   value       = var.db_password
-  key_id      = local.kms_key_id
+  # Using default AWS KMS key for SecureString
 
   tags = merge(
     {
@@ -113,8 +113,8 @@ resource "aws_ssm_parameter" "db_connection_string_mysql" {
   name        = "${local.parameter_prefix}/connection_string/mysql"
   description = "MySQL connection string for ${var.environment} environment"
   type        = "SecureString"
-  value       = "mysql://${var.db_username}:${var.db_password}@${var.db_endpoint}:${var.db_port}/${var.db_name}"
-  key_id      = local.kms_key_id
+  value       = "mysql://${var.db_username}:${var.db_password}@${var.db_endpoint != null ? var.db_endpoint : "pending-endpoint"}:${var.db_port}/${var.db_name}"
+  # Using default AWS KMS key for SecureString
 
   tags = merge(
     {
@@ -129,8 +129,8 @@ resource "aws_ssm_parameter" "db_connection_string_jdbc" {
   name        = "${local.parameter_prefix}/connection_string/jdbc"
   description = "JDBC connection string for ${var.environment} environment"
   type        = "SecureString"
-  value       = "jdbc:mysql://${var.db_endpoint}:${var.db_port}/${var.db_name}"
-  key_id      = local.kms_key_id
+  value       = "jdbc:mysql://${var.db_endpoint != null ? var.db_endpoint : "pending-endpoint"}:${var.db_port}/${var.db_name}"
+  # Using default AWS KMS key for SecureString
 
   tags = merge(
     {
