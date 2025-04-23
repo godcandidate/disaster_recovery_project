@@ -18,7 +18,7 @@ output "api_gateway_invoke_url" {
   value       = "${aws_api_gateway_stage.dr_failover.invoke_url}/failover"
 }
 
-output "api_gateway_role_arn" {
-  description = "ARN of the IAM role for API Gateway to invoke Step Function"
-  value       = aws_iam_role.api_gateway_step_function.arn
+output "api_gateway_lambda_role_arn" {
+  description = "ARN of the IAM role for API Gateway"
+  value       = aws_iam_role.api_gateway_lambda.arn
 }

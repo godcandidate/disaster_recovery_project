@@ -75,21 +75,37 @@ module "security_groups" {
   tags             = local.tags
 }
 
-# Data source to get the AMI created in the primary region
-data "aws_ami" "dr_ami" {
+# Fallback to Amazon Linux AMI if the custom AMI is not available
+data "aws_ami" "amazon_linux" {
   most_recent = true
-  owners      = ["self"]
+  owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["dr-ami-primary-*"]
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 
   filter {
-    name   = "state"
-    values = ["available"]
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 }
+
+# Custom AMI data source commented out to allow destroy to complete
+# data "aws_ami" "dr_ami" {
+#   most_recent = true
+#   owners      = ["self"]
+#
+#   filter {
+#     name   = "name"
+#     values = ["dr-ami-primary-*"]
+#   }
+#
+#   filter {
+#     name   = "state"
+#     values = ["available"]
+#   }
+# }
 
 # EC2 Module - DR Region (Pilot Light)
 module "ec2" {
@@ -107,7 +123,8 @@ module "ec2" {
   max_size             = 2
   desired_capacity     = 0
   is_pilot_light       = true
-  ami_id               = data.aws_ami.dr_ami.id # Use the AMI created in the primary region
+  # Use Amazon Linux AMI directly since custom AMI is no longer available
+  ami_id               = data.aws_ami.amazon_linux.id
   
   # User data script for EC2 instances
   # Minimal user data since most setup is already in the AMI
@@ -120,6 +137,18 @@ module "ec2" {
     DB_HOST     = module.rds.read_replica_db_instance_address
     EC2_IP      = "dummy" # This will be replaced at runtime by the script
   })
+  
+  tags = local.tags
+}
+
+# Load Balancer Module - DR Region
+module "load_balancer" {
+  source = "../../modules/load_balancer"
+  
+  environment      = var.environment
+  vpc_id           = module.vpc.vpc_id
+  subnet_ids       = module.vpc.public_subnet_ids
+  security_group_id = module.security_groups.lb_security_group_id
   
   tags = local.tags
 }
@@ -181,26 +210,68 @@ resource "aws_sns_topic" "dr_notifications" {
   )
 }
 
-# Step Function Module - DR Region
-module "step_function" {
-  source = "../../modules/step_function"
+# Monitoring Module
+module "monitoring" {
+  source = "../../modules/monitoring"
   
   environment        = var.environment
   region             = var.region
+  asg_name           = module.ec2.autoscaling_group_name
+  rds_primary_id     = var.primary_db_instance_id
   rds_read_replica_id = module.rds.read_replica_db_instance_id
-  asg_name           = module.ec2.autoscaling_group_id
   sns_topic_arn      = aws_sns_topic.dr_notifications.arn
   
   tags = local.tags
 }
 
-# API Gateway Module - DR Region
+# Lambda Module for Failover
+module "lambda" {
+  source = "../../modules/lambda"
+  
+  environment            = var.environment
+  region                 = var.region
+  asg_name               = module.ec2.autoscaling_group_name
+  target_group_arn       = module.load_balancer.target_group_arn
+  
+  tags = local.tags
+}
+
+# API Gateway Module
 module "api_gateway" {
   source = "../../modules/api_gateway"
   
+  environment      = var.environment
+  region           = var.region
+  step_function_arn = module.lambda.lambda_function_arn
+  lambda_invoke_arn = module.lambda.lambda_invoke_arn
+  lambda_arn       = module.lambda.lambda_function_arn
+  
+  tags = local.tags
+}
+
+# Lambda API Connector Module
+# This connects the Lambda function to the API Gateway after both are created
+module "lambda_api_connector" {
+  source = "../../modules/lambda_api_connector"
+  
+  environment             = var.environment
+  lambda_function_name    = module.lambda.lambda_function_name
+  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+  
+  tags = local.tags
+}
+
+# SSM Parameter Module - DR Region
+module "ssm" {
+  source = "../../modules/ssm"
+  
   environment       = var.environment
   region            = var.region
-  step_function_arn = module.step_function.step_function_arn
+  db_name           = var.db_name
+  db_username       = var.db_username
+  db_password       = var.db_password
+  db_endpoint       = module.rds.read_replica_db_instance_address
+  db_port           = "3306"
   
   tags = local.tags
 }

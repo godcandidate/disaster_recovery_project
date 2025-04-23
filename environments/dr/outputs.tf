@@ -93,14 +93,14 @@ output "region" {
 }
 
 # DR Testing and Validation Outputs
-output "step_function_arn" {
-  description = "ARN of the DR failover Step Function"
-  value       = module.step_function.step_function_arn
+output "lambda_function_arn" {
+  description = "ARN of the DR failover Lambda function"
+  value       = module.lambda.lambda_function_arn
 }
 
-output "step_function_name" {
-  description = "Name of the DR failover Step Function"
-  value       = module.step_function.step_function_name
+output "lambda_function_name" {
+  description = "Name of the DR failover Lambda function"
+  value       = module.lambda.lambda_function_name
 }
 
 output "api_gateway_id" {
