@@ -100,6 +100,24 @@ resource "aws_db_instance" "read_replica" {
   deletion_protection         = true
   enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
 
+  lifecycle {
+    ignore_changes = [
+      replicate_source_db,
+      parameter_group_name,
+      vpc_security_group_ids,
+      db_subnet_group_name,
+      auto_minor_version_upgrade,
+      backup_retention_period,
+      backup_window,
+      maintenance_window,
+      skip_final_snapshot,
+      final_snapshot_identifier,
+      copy_tags_to_snapshot,
+      deletion_protection,
+      enabled_cloudwatch_logs_exports
+    ]
+  }
+
   tags = merge(
     {
       Name        = "dr-db-${var.environment}-replica"

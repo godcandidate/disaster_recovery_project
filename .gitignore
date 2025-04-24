@@ -11,5 +11,4 @@ production*
 
 # Terraform plugins
 .terraform.d
-environments/primary/terraform.tfvars
-environments/dr/terraform.tfvars
+*.tfvars

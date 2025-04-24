@@ -127,16 +127,16 @@ module "ec2" {
   ami_id               = try(data.aws_ami.dr_ami.id, data.aws_ami.amazon_linux.id)
   
   # User data script for EC2 instances
-  # Minimal user data since most setup is already in the AMI
-  # user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
-  #   environment = var.environment
-  #   region      = var.region
-  #   DB_NAME     = var.db_name
-  #   DB_USER     = var.db_username
-  #   DB_PASSWORD = var.db_password
-  #   DB_HOST     = module.rds.read_replica_db_instance_address
-  #   EC2_IP      = "dummy" # This will be replaced at runtime by the script
-  # })
+  user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
+    REGION           = var.region
+    DB_HOST_PARAM    = module.ssm.db_host_parameter_name
+    DB_PORT_PARAM    = module.ssm.db_port_parameter_name
+    DB_NAME_PARAM    = module.ssm.db_name_parameter_name
+    DB_USER_PARAM    = module.ssm.db_username_parameter_name
+    DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
+    S3_BUCKET_ID_PARAM = module.s3.dr_bucket_id
+    S3_BUCKET_REGION_PARAM = module.s3.dr_bucket_region
+  })
   
   tags = local.tags
 }
@@ -173,7 +173,7 @@ module "rds" {
   db_multi_az            = var.db_multi_az # Single AZ for read replica is sufficient
   db_backup_retention_period = 1
   enable_cross_region_backup = false
-  is_read_replica        = false # Set to false to skip creating a new read replica
+  is_read_replica        = true # Changed to true to create a read replica
   source_db_instance_identifier = var.primary_db_instance_id
   
   tags = local.tags
@@ -211,19 +211,7 @@ resource "aws_sns_topic_subscription" "dr_email_subscription" {
   endpoint  = "godcandidate101@gmail.com"
 }
 
-# Monitoring Module
-module "monitoring" {
-  source = "../../modules/monitoring"
-  
-  environment        = var.environment
-  region             = var.region
-  asg_name           = module.ec2.autoscaling_group_name
-  rds_primary_id     = var.primary_db_instance_id
-  rds_read_replica_id = module.rds.read_replica_db_instance_id
-  sns_topic_arn      = aws_sns_topic.dr_notifications.arn
-  
-  tags = local.tags
-}
+
 
 # Lambda Module for Failover
 module "lambda" {
@@ -263,7 +251,7 @@ module "lambda_api_connector" {
   tags = local.tags
 }
 
-# SSM Parameter Module - DR Region
+# SSM Module - DR Region
 module "ssm" {
   source = "../../modules/ssm"
   
@@ -274,6 +262,10 @@ module "ssm" {
   db_password       = var.db_password
   db_endpoint       = module.rds.read_replica_db_instance_address
   db_port           = "3306"
+  s3_bucket_id      = module.s3.primary_bucket_id
+  s3_bucket_region  = module.s3.primary_bucket_region
   
   tags = local.tags
+  
+  depends_on = [module.s3]
 }

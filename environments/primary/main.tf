@@ -234,8 +234,8 @@ module "ec2" {
     EC2_IP           = "dummy" # Will be replaced at runtime by the script
     AWS_ACCESS_KEY   = var.aws_access_key
     AWS_SECRET_KEY   = var.aws_secret_key
-    S3_BUCKET_ID_PARAM = "/dr/primary/s3/bucket_id"
-    S3_BUCKET_REGION_PARAM = "/dr/primary/s3/bucket_region"
+    S3_BUCKET_ID_PARAM = module.s3.primary_bucket_id
+    S3_BUCKET_REGION_PARAM = module.s3.primary_bucket_region
   })
   
   tags = local.tags

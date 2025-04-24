@@ -105,9 +105,23 @@ variable "db_multi_az" {
 
 # Primary region RDS instance identifier (for read replica)
 variable "primary_db_instance_id" {
-  description = "ID of the primary DB instance for read replica"
+  description = "ID of the primary DB instance for reference in DR region"
   type        = string
   default     = "dr-db-primary"
+}
+
+variable "aws_access_key" {
+  description = "AWS Access Key for S3 access"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "aws_secret_key" {
+  description = "AWS Secret Key for S3 access"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "tags" {
