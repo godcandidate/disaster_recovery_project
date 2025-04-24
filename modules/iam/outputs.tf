@@ -27,3 +27,8 @@ output "s3_replication_role_arn" {
   description = "ARN of the S3 replication IAM role"
   value       = aws_iam_role.s3_replication_role.arn
 }
+
+output "eventbridge_role_arn" {
+  description = "ARN of the EventBridge role for cross-region event forwarding"
+  value       = aws_iam_role.eventbridge_role.arn
+}

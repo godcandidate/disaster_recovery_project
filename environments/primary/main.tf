@@ -290,3 +290,29 @@ module "monitoring" {
   
   tags = local.tags
 }
+
+# EventBridge rule to monitor AMI builder instance state
+resource "aws_cloudwatch_event_rule" "ami_builder_state_change" {
+  name        = "ami-builder-state-change"
+  description = "Capture state changes for AMI builder instance"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance State-change Notification"]
+    detail      = {
+      instance-id = [aws_instance.ami_builder.id]
+      state       = ["terminated", "stopped"]
+    }
+  })
+}
+
+# EventBridge target to send events to DR region
+resource "aws_cloudwatch_event_target" "send_to_dr_region" {
+  rule      = aws_cloudwatch_event_rule.ami_builder_state_change.name
+  target_id = "SendToDRRegion"
+  arn       = "arn:aws:events:${var.dr_region}:${data.aws_caller_identity.current.account_id}:event-bus/default"
+  role_arn  = module.iam.eventbridge_role_arn
+}
+
+# Add AWS caller identity data source
+data "aws_caller_identity" "current" {}

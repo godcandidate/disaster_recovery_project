@@ -132,3 +132,19 @@ output "db_password_parameter_name" {
   description = "Name of the SSM parameter for database password"
   value       = module.ssm.db_password_parameter_name
 }
+
+# Load Balancer Outputs
+output "lb_arn" {
+  description = "ARN of the load balancer in the primary region"
+  value       = module.load_balancer.lb_arn
+}
+
+output "lb_dns_name" {
+  description = "DNS name of the load balancer in the primary region"
+  value       = module.load_balancer.lb_dns_name
+}
+
+output "target_group_arn" {
+  description = "ARN of the target group in the primary region"
+  value       = module.load_balancer.target_group_arn
+}

@@ -68,7 +68,8 @@ resource "aws_db_instance" "primary" {
   copy_tags_to_snapshot       = true
   auto_minor_version_upgrade  = true
   deletion_protection         = false
-  enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
+  # Removed CloudWatch logs export
+  # enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
 
   tags = merge(
     {
@@ -98,7 +99,8 @@ resource "aws_db_instance" "read_replica" {
   final_snapshot_identifier   = var.db_final_snapshot_identifier != null ? var.db_final_snapshot_identifier : "dr-db-${var.environment}-replica-final-snapshot"
   copy_tags_to_snapshot       = true
   deletion_protection         = true
-  enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
+  # Removed CloudWatch logs export
+  # enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
 
   lifecycle {
     ignore_changes = [

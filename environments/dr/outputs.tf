@@ -104,22 +104,38 @@ output "lambda_function_name" {
   value       = module.lambda.lambda_function_name
 }
 
-output "api_gateway_id" {
-  description = "ID of the DR failover API Gateway"
-  value       = module.api_gateway.api_gateway_id
-}
+# output "api_gateway_id" {
+#   description = "ID of the DR failover API Gateway"
+#   value       = module.api_gateway.api_gateway_id
+# }
 
-output "api_gateway_execution_arn" {
-  description = "Execution ARN of the DR failover API Gateway"
-  value       = module.api_gateway.api_gateway_execution_arn
-}
+# output "api_gateway_execution_arn" {
+#   description = "Execution ARN of the DR failover API Gateway"
+#   value       = module.api_gateway.api_gateway_execution_arn
+# }
 
-output "api_gateway_invoke_url" {
-  description = "URL to invoke the DR failover API Gateway endpoint"
-  value       = module.api_gateway.api_gateway_invoke_url
-}
+# output "api_gateway_invoke_url" {
+#   description = "URL to invoke the DR failover API Gateway endpoint"
+#   value       = module.api_gateway.api_gateway_invoke_url
+# }
 
 output "sns_topic_arn" {
   description = "ARN of the SNS topic for DR notifications"
   value       = aws_sns_topic.dr_notifications.arn
+}
+
+# Load Balancer Outputs
+output "lb_arn" {
+  description = "ARN of the load balancer in the DR region"
+  value       = module.load_balancer.lb_arn
+}
+
+output "lb_dns_name" {
+  description = "DNS name of the load balancer in the DR region"
+  value       = module.load_balancer.lb_dns_name
+}
+
+output "target_group_arn" {
+  description = "ARN of the target group in the DR region"
+  value       = module.load_balancer.target_group_arn
 }

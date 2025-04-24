@@ -196,8 +196,6 @@ resource "aws_iam_role" "lambda_dr_role" {
   )
 }
 
-
-
 # Cross-region role assumption policy
 resource "aws_iam_policy" "cross_region_assume_role" {
   name        = "cross-region-assume-role-${var.environment}"
@@ -225,7 +223,6 @@ resource "aws_iam_role_policy_attachment" "rds_cross_region_attachment" {
   role       = aws_iam_role.rds_dr_role.name
   policy_arn = aws_iam_policy.cross_region_assume_role.arn
 }
-
 
 # S3 Replication IAM Role
 resource "aws_iam_role" "s3_replication_role" {
@@ -301,4 +298,57 @@ resource "aws_iam_policy" "s3_replication_policy" {
 resource "aws_iam_role_policy_attachment" "s3_replication_attachment" {
   role       = aws_iam_role.s3_replication_role.name
   policy_arn = aws_iam_policy.s3_replication_policy.arn
+}
+
+# EventBridge IAM Role for cross-region event forwarding
+resource "aws_iam_role" "eventbridge_role" {
+  name = "eventbridge-cross-region-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = merge(
+    {
+      Name        = "eventbridge-cross-region-${var.environment}"
+      Environment = var.environment
+    },
+    var.tags
+  )
+}
+
+# Policy for EventBridge to forward events to another region
+resource "aws_iam_policy" "eventbridge_cross_region" {
+  name        = "eventbridge-cross-region-${var.environment}"
+  description = "Policy for EventBridge to forward events to another region"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "events:PutEvents"
+        ]
+        Effect   = "Allow"
+        Resource = [
+          "arn:aws:events:${var.dr_region}:*:event-bus/default"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach policy to EventBridge role
+resource "aws_iam_role_policy_attachment" "eventbridge_cross_region" {
+  role       = aws_iam_role.eventbridge_role.name
+  policy_arn = aws_iam_policy.eventbridge_cross_region.arn
 }

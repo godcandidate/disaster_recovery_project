@@ -11,9 +11,20 @@ S3_BUCKET_REGION='${S3_BUCKET_REGION_PARAM}'
 
 
 # Update docker-compose.yml with the values
-sed -i "s/DB_HOST/$DB_HOST/g" /app/docker-compose.yml
-sed -i "s/AWS_REGION/$S3_BUCKET_REGION/g" /app/docker-compose.yml
-sed -i "s/AWS_BUCKET_NAME/$S3_BUCKET_ID/g" /app/docker-compose.yml
+sed -i -E \
+  -e "s|^( *DB_HOST:).*|\1 ${DB_HOST_PARAM}|" \
+  -e "s|^( *AWS_REGION:).*|\1 ${S3_BUCKET_REGION_PARAM}|" \
+  -e "s|^( *AWS_BUCKET_NAME:).*|\1 ${S3_BUCKET_ID_PARAM}|" \
+  /app/docker-compose.yml
+
+# Start the application
+cd /app
+docker-compose up -d
+STARTUP
+
+chmod +x /usr/local/bin/start-application.sh
+
+# Set up cron job to start the application on reboot
 
 
 

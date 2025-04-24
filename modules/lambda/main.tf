@@ -38,7 +38,11 @@ resource "aws_iam_policy" "lambda_asg_policy" {
         Action = [
           "autoscaling:UpdateAutoScalingGroup",
           "autoscaling:DescribeAutoScalingGroups",
-          "autoscaling:SetDesiredCapacity"
+          "autoscaling:SetDesiredCapacity",
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetHealth"
         ]
         Effect   = "Allow"
         Resource = "*"
@@ -144,10 +148,12 @@ const AWS = require('aws-sdk');
 
 exports.handler = async (event) => {
     const autoscaling = new AWS.AutoScaling();
+    const elbv2 = new AWS.ELBv2();
     const sns = new AWS.SNS();
     
     // Get environment variables
     const asgName = process.env.AUTO_SCALING_GROUP_NAME;
+    const targetGroupArn = process.env.TARGET_GROUP_ARN;
     const desiredCapacity = process.env.DESIRED_CAPACITY;
     const snsTopicArn = process.env.SNS_TOPIC_ARN;
     
@@ -162,6 +168,69 @@ exports.handler = async (event) => {
         }).promise();
         
         console.log('Auto Scaling Group updated successfully');
+        
+        // Wait for instances to be in service
+        console.log('Waiting for instances to be in service...');
+        let instancesInService = false;
+        let retries = 0;
+        const maxRetries = 30; // 5 minutes (10 seconds * 30)
+        
+        while (!instancesInService && retries < maxRetries) {
+            // Get the ASG details to find instance IDs
+            const asgDetails = await autoscaling.describeAutoScalingGroups({
+                AutoScalingGroupNames: [asgName]
+            }).promise();
+            
+            if (asgDetails.AutoScalingGroups.length > 0) {
+                const group = asgDetails.AutoScalingGroups[0];
+                const instances = group.Instances;
+                
+                if (instances.length > 0) {
+                    const runningInstances = instances.filter(i => i.LifecycleState === 'InService');
+                    
+                    if (runningInstances.length === parseInt(desiredCapacity)) {
+                        instancesInService = true;
+                        console.log('All instances are now in service');
+                        
+                        // Register instances with the target group if not already registered
+                        if (targetGroupArn) {
+                            // Check if instances are already registered with the target group
+                            const targetHealthResult = await elbv2.describeTargetHealth({
+                                TargetGroupArn: targetGroupArn
+                            }).promise();
+                            
+                            const registeredInstanceIds = targetHealthResult.TargetHealthDescriptions.map(thd => thd.Target.Id);
+                            const instancesToRegister = runningInstances
+                                .filter(instance => !registeredInstanceIds.includes(instance.InstanceId))
+                                .map(instance => ({
+                                    Id: instance.InstanceId,
+                                    Port: 80 // Assuming your application runs on port 80
+                                }));
+                            
+                            if (instancesToRegister.length > 0) {
+                                console.log('Registering instances with target group:', instancesToRegister.map(i => i.Id).join(', '));
+                                await elbv2.registerTargets({
+                                    TargetGroupArn: targetGroupArn,
+                                    Targets: instancesToRegister
+                                }).promise();
+                                console.log('Instances registered with target group successfully');
+                            } else {
+                                console.log('All instances are already registered with the target group');
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!instancesInService) {
+                retries++;
+                await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds before checking again
+            }
+        }
+        
+        if (!instancesInService) {
+            console.warn('Timed out waiting for instances to be in service');
+        }
         
         // Send success notification
         if (snsTopicArn) {
@@ -182,7 +251,7 @@ exports.handler = async (event) => {
             })
         };
     } catch (error) {
-        console.error('Error updating Auto Scaling Group:', error);
+        console.error('Error during DR failover:', error);
         
         // Send failure notification
         if (snsTopicArn) {
@@ -216,6 +285,7 @@ EOF
 AUTO_SCALING_GROUP_NAME=${var.asg_name}
 DESIRED_CAPACITY=1
 SNS_TOPIC_ARN=${var.sns_topic_arn == null ? "" : var.sns_topic_arn}
+TARGET_GROUP_ARN=${var.target_group_arn == null ? "" : var.target_group_arn}
 EOF
     filename = ".env"
   }

@@ -128,7 +128,6 @@ module "ec2" {
   
   # User data script for EC2 instances
   user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
-    REGION           = var.region
     DB_HOST_PARAM    = module.ssm.db_host_parameter_name
     DB_PORT_PARAM    = module.ssm.db_port_parameter_name
     DB_NAME_PARAM    = module.ssm.db_name_parameter_name
@@ -226,30 +225,30 @@ module "lambda" {
   tags = local.tags
 }
 
-# API Gateway Module
-module "api_gateway" {
-  source = "../../modules/api_gateway"
-  
-  environment      = var.environment
-  region           = var.region
-  step_function_arn = module.lambda.lambda_function_arn
-  lambda_invoke_arn = module.lambda.lambda_invoke_arn
-  lambda_arn       = module.lambda.lambda_function_arn
-  
-  tags = local.tags
-}
+# API Gateway Module removed as it's no longer needed with EventBridge
+# module "api_gateway" {
+#   source = "../../modules/api_gateway"
+#   
+#   environment      = var.environment
+#   region           = var.region
+#   step_function_arn = module.lambda.lambda_function_arn
+#   lambda_invoke_arn = module.lambda.lambda_invoke_arn
+#   lambda_arn       = module.lambda.lambda_function_arn
+#   
+#   tags = local.tags
+# }
 
 # Lambda API Connector Module
 # This connects the Lambda function to the API Gateway after both are created
-module "lambda_api_connector" {
-  source = "../../modules/lambda_api_connector"
-  
-  environment             = var.environment
-  lambda_function_name    = module.lambda.lambda_function_name
-  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
-  
-  tags = local.tags
-}
+# module "lambda_api_connector" {
+#   source = "../../modules/lambda_api_connector"
+#   
+#   environment             = var.environment
+#   lambda_function_name    = module.lambda.lambda_function_name
+#   api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+#   
+#   tags = local.tags
+# }
 
 # SSM Module - DR Region
 module "ssm" {
@@ -268,4 +267,34 @@ module "ssm" {
   tags = local.tags
   
   depends_on = [module.s3]
+}
+
+# EventBridge rule to receive events from primary region
+resource "aws_cloudwatch_event_rule" "receive_from_primary" {
+  name        = "receive-ami-builder-events"
+  description = "Receive AMI builder state change events from primary region"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance State-change Notification"]
+    detail      = {
+      state = ["terminated", "stopped"]
+    }
+  })
+}
+
+# EventBridge target to trigger Lambda function
+resource "aws_cloudwatch_event_target" "trigger_lambda" {
+  rule      = aws_cloudwatch_event_rule.receive_from_primary.name
+  target_id = "TriggerFailoverLambda"
+  arn       = module.lambda.lambda_function_arn
+}
+
+# Permission for EventBridge to invoke Lambda
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = module.lambda.lambda_function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.receive_from_primary.arn
 }

@@ -1,0 +1,13 @@
+environment = "global"
+region = "us-east-1"
+primary_region = "eu-west-1"  # Update with your primary region
+dr_region = "us-east-1"       # Update with your DR region
+primary_traffic_dial_percentage = 100
+dr_traffic_dial_percentage = 0
+email = "godcandidate101@gmail.com"  # Update with your email address
+
+tags = {
+  Project     = "Disaster Recovery"
+  ManagedBy   = "Terraform"
+  Environment = "global"
+}
