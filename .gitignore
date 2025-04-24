@@ -11,3 +11,4 @@ production*
 
 # Terraform plugins
 .terraform.d
+*.tfvars
