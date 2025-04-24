@@ -25,6 +25,7 @@ resource "aws_kms_alias" "ssm" {
 locals {
   kms_key_id = var.kms_key_id != null ? var.kms_key_id : (var.kms_key_id == null ? aws_kms_key.ssm[0].key_id : null)
   parameter_prefix = "/dr/${var.environment}/database"
+  s3_parameter_prefix = "/dr/${var.environment}/s3"
 }
 
 # SSM Parameters for Database Connection
@@ -135,6 +136,37 @@ resource "aws_ssm_parameter" "db_connection_string_jdbc" {
   tags = merge(
     {
       Name        = "dr-db-connection-jdbc-${var.environment}"
+      Environment = var.environment
+    },
+    var.tags
+  )
+}
+
+# S3 Parameters for Image Gallery Application
+resource "aws_ssm_parameter" "s3_bucket_id" {
+  name        = "${local.s3_parameter_prefix}/bucket_id"
+  description = "S3 bucket ID for image gallery in ${var.environment} environment"
+  type        = "String"
+  value       = var.s3_bucket_id != "" ? var.s3_bucket_id : "pending-bucket-id"
+
+  tags = merge(
+    {
+      Name        = "dr-s3-bucket-id-${var.environment}"
+      Environment = var.environment
+    },
+    var.tags
+  )
+}
+
+resource "aws_ssm_parameter" "s3_bucket_region" {
+  name        = "${local.s3_parameter_prefix}/bucket_region"
+  description = "S3 bucket region for image gallery in ${var.environment} environment"
+  type        = "String"
+  value       = var.s3_bucket_region != "" ? var.s3_bucket_region : var.region
+
+  tags = merge(
+    {
+      Name        = "dr-s3-bucket-region-${var.environment}"
       Environment = var.environment
     },
     var.tags

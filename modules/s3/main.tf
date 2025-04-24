@@ -130,42 +130,85 @@ resource "aws_s3_bucket_replication_configuration" "primary" {
   }
 }
 
-# Public access block for primary bucket
+# Public access block for primary bucket - allowing public access for image gallery
 resource "aws_s3_bucket_public_access_block" "primary" {
   bucket = aws_s3_bucket.primary.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
 
-# Public access block for DR bucket
+# Public access block for DR bucket - allowing public access for image gallery
 resource "aws_s3_bucket_public_access_block" "dr" {
   provider = aws.dr
   bucket   = aws_s3_bucket.dr.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
 
-# Create a folder structure for media files
-resource "aws_s3_object" "media_folder" {
-  bucket  = aws_s3_bucket.primary.id
-  key     = "media/"
-  content = ""
+# CORS configuration for image gallery application
+resource "aws_s3_bucket_cors_configuration" "primary" {
+  bucket = aws_s3_bucket.primary.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
 }
 
-resource "aws_s3_object" "production_folder" {
-  bucket  = aws_s3_bucket.primary.id
-  key     = "production/"
-  content = ""
+# CORS configuration for DR bucket
+resource "aws_s3_bucket_cors_configuration" "dr" {
+  provider = aws.dr
+  bucket   = aws_s3_bucket.dr.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
 }
 
-resource "aws_s3_object" "production_media_folder" {
-  bucket  = aws_s3_bucket.primary.id
-  key     = "production/media/"
-  content = ""
+# Bucket policy for public read access to primary bucket
+resource "aws_s3_bucket_policy" "primary_public_read" {
+  bucket = aws_s3_bucket.primary.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = ["s3:GetObject"]
+        Resource  = ["${aws_s3_bucket.primary.arn}/*"]
+      }
+    ]
+  })
+}
+
+# Bucket policy for public read access to DR bucket
+resource "aws_s3_bucket_policy" "dr_public_read" {
+  provider = aws.dr
+  bucket   = aws_s3_bucket.dr.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = ["s3:GetObject"]
+        Resource  = ["${aws_s3_bucket.dr.arn}/*"]
+      }
+    ]
+  })
 }

@@ -1,22 +1,16 @@
 #!/bin/bash
-echo "Setting up EC2 instance in Primary region"
 
 # Install Docker and Docker Compose
 yum update -y
-yum install -y docker
-systemctl start docker
-systemctl enable docker
+yum install -y docker awscli amazon-ssm-agent
+systemctl start docker amazon-ssm-agent
+systemctl enable docker amazon-ssm-agent
 usermod -aG docker ec2-user
 
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-
-# Install AWS CLI and SSM agent
-yum install -y awscli amazon-ssm-agent
-systemctl enable amazon-ssm-agent
-systemctl start amazon-ssm-agent
 
 # Create script to fetch database credentials from SSM Parameter Store
 cat > /usr/local/bin/get-db-credentials.sh << 'EOF'
@@ -29,77 +23,32 @@ DB_PORT_PARAM='${DB_PORT_PARAM}'
 DB_NAME_PARAM='${DB_NAME_PARAM}'
 DB_USER_PARAM='${DB_USER_PARAM}'
 DB_PASSWORD_PARAM='${DB_PASSWORD_PARAM}'
-
-# Add debugging
-echo "Attempting to retrieve parameters from region: $REGION"
-echo "Parameter names:"
-echo "- Host: $DB_HOST_PARAM"
-echo "- Port: $DB_PORT_PARAM"
-echo "- Name: $DB_NAME_PARAM"
-echo "- User: $DB_USER_PARAM"
-echo "- Password: $DB_PASSWORD_PARAM (value will be hidden)"
-
-# Fetch database credentials from SSM Parameter Store with error handling
+S3_BUCKET_ID_PARAM='${S3_BUCKET_ID_PARAM}'
+S3_BUCKET_REGION_PARAM='${S3_BUCKET_REGION_PARAM}'
+AWS_ACCESS_KEY='${AWS_ACCESS_KEY}'
+AWS_SECRET_KEY='${AWS_SECRET_KEY}'
+# Function to get parameter value from SSM
 get_parameter() {
   local param_name=$1
-  local param_value
-  
-  echo "Retrieving parameter: $param_name"
-  param_value=$(aws ssm get-parameter --name "$param_name" --with-decryption --region "$REGION" --query "Parameter.Value" --output text 2>/tmp/ssm_error.log)
-  
-  if [ $? -ne 0 ]; then
-    echo "Error retrieving parameter $param_name:"
-    cat /tmp/ssm_error.log
-    return 1
-  fi
-  
-  echo "$param_value"
+  aws ssm get-parameter --name "$param_name" --with-decryption --region "$REGION" --query "Parameter.Value" --output text 2>/dev/null
 }
 
-# Get each parameter with error handling - capture only the output value
-get_clean_parameter() {
-  local param_name=$1
-  local param_value
-  
-  # Redirect all output to /dev/null except the actual parameter value
-  param_value=$(aws ssm get-parameter --name "$param_name" --with-decryption --region "$REGION" --query "Parameter.Value" --output text 2>/dev/null)
-  
-  if [ $? -ne 0 ]; then
-    echo "Error retrieving parameter $param_name" >&2
-    return 1
-  fi
-  
-  echo "$param_value"
-}
-
-# Get each parameter with clean output
-DB_HOST=$(get_clean_parameter "$DB_HOST_PARAM")
-DB_PORT=$(get_clean_parameter "$DB_PORT_PARAM")
-DB_NAME=$(get_clean_parameter "$DB_NAME_PARAM")
-DB_USER=$(get_clean_parameter "$DB_USER_PARAM")
-DB_PASSWORD=$(get_clean_parameter "$DB_PASSWORD_PARAM")
+# Get parameters
+DB_HOST=$(get_parameter "$DB_HOST_PARAM")
+DB_PORT=$(get_parameter "$DB_PORT_PARAM")
+DB_NAME=$(get_parameter "$DB_NAME_PARAM")
+DB_USER=$(get_parameter "$DB_USER_PARAM")
+DB_PASSWORD=$(get_parameter "$DB_PASSWORD_PARAM")
+S3_BUCKET_ID=$(get_parameter "$S3_BUCKET_ID_PARAM")
+S3_BUCKET_REGION=$(get_parameter "$S3_BUCKET_REGION_PARAM")
 
 # Export the variables
-export DB_HOST
-export DB_PORT
-export DB_NAME
-export DB_USER
-export DB_PASSWORD
-
-# Verify parameters were retrieved
-echo "Parameter retrieval status:"
-if [ -n "$DB_HOST" ]; then echo "- DB_HOST: Retrieved successfully"; else echo "- DB_HOST: Failed"; fi
-if [ -n "$DB_PORT" ]; then echo "- DB_PORT: Retrieved successfully"; else echo "- DB_PORT: Failed"; fi
-if [ -n "$DB_NAME" ]; then echo "- DB_NAME: Retrieved successfully"; else echo "- DB_NAME: Failed"; fi
-if [ -n "$DB_USER" ]; then echo "- DB_USER: Retrieved successfully"; else echo "- DB_USER: Failed"; fi
-if [ -n "$DB_PASSWORD" ]; then echo "- DB_PASSWORD: Retrieved successfully"; else echo "- DB_PASSWORD: Failed"; fi
-
-echo "Database credentials fetched from SSM Parameter Store"
+export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD S3_BUCKET_ID S3_BUCKET_REGION
 EOF
 
 chmod +x /usr/local/bin/get-db-credentials.sh
 
-# Get the EC2 instance's public IP address at runtime
+# Get the EC2 instance's public IP address
 EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
 # Create docker-compose.yml file
@@ -108,31 +57,24 @@ cat > /app/docker-compose.yml << 'DOCKER_COMPOSE'
 version: '3.8'
 
 services:
-  # Frontend Service
-  frontend:
-    image: godcandidate/lamp-stack-frontend:latest
-    container_name: frontend
+  # Image Gallery App
+  app:
+    image: godcandidate/image-gallery-app:latest
+    restart: always
+    ports:
+      - "80:3001"
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://PUBLIC_IP:5000/todos
-    ports:
-      - "80:3000" 
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: always
-
-  # Backend Service
-  backend:
-    image: godcandidate/lamp-stack-backend:latest
-    container_name: backend
-    env_file:
-      - /app/.env
-    ports:
-      - "5000:80"
-    networks:
-      - app-network
-    restart: always
+      # Database
+      DB_HOST: DB_HOST_VALUE
+      DB_NAME: DB_NAME_VALUE
+      DB_USER: DB_USER_VALUE
+      DB_PASSWORD: DB_PASSWORD_VALUE
+      PORT: 3001
+      # AWS S3
+      AWS_REGION: AWS_REGION_VALUE
+      AWS_ACCESS_KEY_ID: AWS_ACCESS_KEY_ID_VALUE
+      AWS_SECRET_ACCESS_KEY: AWS_SECRET_ACCESS_KEY_VALUE
+      AWS_BUCKET_NAME: AWS_BUCKET_NAME_VALUE
 
 # Networks
 networks:
@@ -140,26 +82,36 @@ networks:
     driver: bridge
 DOCKER_COMPOSE
 
-# Replace the placeholder with the actual IP
-sed -i "s/PUBLIC_IP/$EC2_IP/g" /app/docker-compose.yml
 
-# Create startup script
+
+# Create startup script for dynamic parameter retrieval on boot
 cat > /usr/local/bin/start-application.sh << 'STARTUP'
 #!/bin/bash
-# Source the database credentials
+# Get fresh values from SSM on each boot
 source /usr/local/bin/get-db-credentials.sh
 
-# Create .env file for the backend service with clean values
-echo "DB_HOST=$DB_HOST" > /app/.env
-echo "DB_NAME=$DB_NAME" >> /app/.env
-echo "DB_USER=$DB_USER" >> /app/.env
-echo "DB_PASSWORD=$DB_PASSWORD" >> /app/.env
+# Get AWS credentials (from variables or instance metadata)
+if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
+  TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  ROLE=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+  CREDS=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE)
+  AWS_ACCESS_KEY=$(echo $CREDS | grep -o '"AccessKeyId" : "[^"]*"' | cut -d '"' -f 4)
+  AWS_SECRET_KEY=$(echo $CREDS | grep -o '"SecretAccessKey" : "[^"]*"' | cut -d '"' -f 4)
+fi
 
-# Start the application with docker-compose
+# Update docker-compose with actual values
+sed -i "s/DB_HOST_VALUE/$DB_HOST/g" /app/docker-compose.yml
+sed -i "s/DB_NAME_VALUE/$DB_NAME/g" /app/docker-compose.yml
+sed -i "s/DB_USER_VALUE/$DB_USER/g" /app/docker-compose.yml
+sed -i "s/DB_PASSWORD_VALUE/$DB_PASSWORD/g" /app/docker-compose.yml
+sed -i "s/AWS_REGION_VALUE/$S3_BUCKET_REGION/g" /app/docker-compose.yml
+sed -i "s/AWS_ACCESS_KEY_ID_VALUE/$AWS_ACCESS_KEY/g" /app/docker-compose.yml
+sed -i "s/AWS_SECRET_ACCESS_KEY_VALUE/$AWS_SECRET_KEY/g" /app/docker-compose.yml
+sed -i "s/AWS_BUCKET_NAME_VALUE/$S3_BUCKET_ID/g" /app/docker-compose.yml
+
+# Start the application
 cd /app
 docker-compose up -d
-
-echo "Application started successfully"
 STARTUP
 
 chmod +x /usr/local/bin/start-application.sh
@@ -169,5 +121,3 @@ echo "@reboot root /usr/local/bin/start-application.sh" > /etc/cron.d/start-appl
 
 # Start the application
 /usr/local/bin/start-application.sh
-
-echo "Primary environment setup complete"

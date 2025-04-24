@@ -58,7 +58,7 @@ variable "key_name" {
 variable "db_name" {
   description = "Name of the database"
   type        = string
-  default     = "todoDB"
+  default     = "imageDB"
 }
 
 variable "db_username" {
@@ -105,4 +105,19 @@ variable "tags" {
     Project     = "Disaster Recovery"
     ManagedBy   = "Terraform"
   }
+}
+
+# AWS credentials for S3 access
+variable "aws_access_key" {
+  description = "AWS access key for S3 access"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_key" {
+  description = "AWS secret key for S3 access"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

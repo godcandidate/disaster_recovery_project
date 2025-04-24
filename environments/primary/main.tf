@@ -70,19 +70,41 @@ module "iam" {
   tags = local.tags
 }
 
+# S3 Module - Primary Region
+module "s3" {
+  source = "../../modules/s3"
+  
+  environment = var.environment
+  region      = var.region
+  dr_region   = var.dr_region
+  bucket_name = "image-gallery-${var.environment}-${random_string.suffix.result}"
+  replication_role_arn = module.iam.s3_replication_role_arn
+  
+  providers = {
+    aws = aws
+    aws.dr = aws.dr
+  }
+  
+  tags = local.tags
+}
+
 # SSM Parameter Store Module - Primary Region
 module "ssm" {
   source = "../../modules/ssm"
   
-  environment = var.environment
-  region      = var.region
-  db_name     = var.db_name
-  db_username = var.db_username
-  db_password = var.db_password
-  db_endpoint = module.rds.primary_db_instance_address
-  db_port     = "3306"
+  environment     = var.environment
+  region          = var.region
+  db_name         = var.db_name
+  db_username     = var.db_username
+  db_password     = var.db_password
+  db_endpoint     = module.rds.primary_db_instance_address
+  db_port         = "3306"
+  s3_bucket_id    = module.s3.primary_bucket_id
+  s3_bucket_region = module.s3.primary_bucket_region
   
   tags = local.tags
+  
+  depends_on = [module.s3]
 }
 
 # Security Groups Module
@@ -115,6 +137,10 @@ resource "aws_instance" "ami_builder" {
     DB_USER_PARAM    = module.ssm.db_username_parameter_name
     DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
     EC2_IP           = "dummy" # Will be replaced at runtime by the script
+    AWS_ACCESS_KEY   = var.aws_access_key
+    AWS_SECRET_KEY   = var.aws_secret_key
+    S3_BUCKET_ID_PARAM = "/dr/primary/s3/bucket_id"
+    S3_BUCKET_REGION_PARAM = "/dr/primary/s3/bucket_region"
   })
   
   tags = merge(
@@ -206,6 +232,10 @@ module "ec2" {
     DB_USER_PARAM    = module.ssm.db_username_parameter_name
     DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
     EC2_IP           = "dummy" # Will be replaced at runtime by the script
+    AWS_ACCESS_KEY   = var.aws_access_key
+    AWS_SECRET_KEY   = var.aws_secret_key
+    S3_BUCKET_ID_PARAM = "/dr/primary/s3/bucket_id"
+    S3_BUCKET_REGION_PARAM = "/dr/primary/s3/bucket_region"
   })
   
   tags = local.tags
@@ -244,24 +274,6 @@ module "load_balancer" {
   vpc_id            = module.vpc.vpc_id
   subnet_ids        = module.vpc.public_subnet_ids
   security_group_id = module.security_groups.lb_security_group_id
-  
-  tags = local.tags
-}
-
-# S3 Module - Primary Region
-module "s3" {
-  source = "../../modules/s3"
-  
-  environment = var.environment
-  region      = var.region
-  dr_region   = var.dr_region
-  bucket_name = "dr-bucket-${var.environment}-${random_string.suffix.result}"
-  replication_role_arn = module.iam.s3_replication_role_arn
-  
-  providers = {
-    aws = aws
-    aws.dr = aws.dr
-  }
   
   tags = local.tags
 }

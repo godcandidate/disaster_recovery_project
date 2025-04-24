@@ -46,3 +46,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "s3_bucket_id" {
+  description = "S3 bucket ID for the application"
+  type        = string
+  default     = ""
+}
+
+variable "s3_bucket_region" {
+  description = "Region of the S3 bucket"
+  type        = string
+  default     = ""
+}

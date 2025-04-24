@@ -30,7 +30,12 @@ output "dr_bucket_domain_name" {
 
 # Replication role moved to IAM module
 
-output "production_media_folder_path" {
-  description = "Path to the production media folder in the primary bucket"
-  value       = "${aws_s3_bucket.primary.bucket}/production/media/"
+output "primary_bucket_region" {
+  description = "Region of the primary S3 bucket"
+  value       = var.region
+}
+
+output "dr_bucket_region" {
+  description = "Region of the DR S3 bucket"
+  value       = var.dr_region
 }
