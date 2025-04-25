@@ -28,6 +28,15 @@ terraform {
   # }
 }
 
+# Remote state for primary environment
+data "terraform_remote_state" "primary" {
+  backend = "local"
+  
+  config = {
+    path = "../primary/terraform.tfstate"
+  }
+}
+
 locals {
   tags = merge(
     var.tags,
@@ -130,7 +139,8 @@ module "ec2" {
   user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
     REGION_PARAM     = var.region  # Pass the current region for SSM parameter retrieval
     DB_HOST_PARAM    = module.rds.read_replica_db_instance_address  # Directly pass the read replica address
-    S3_BUCKET_ID_PARAM = module.s3.primary_bucket_id  # Use primary bucket ID since we're replicating from primary to DR
+    #S3_BUCKET_ID_PARAM = data.terraform_remote_state.primary.outputs.dr_s3_bucket_id  # Get bucket name from primary and replace region
+    S3_BUCKET_ID_PARAM = "dr-primary-image-gallery-primary-y1r1cmyi-us-east-1"  # Get bucket name from primary and replace region
     S3_BUCKET_REGION_PARAM = var.region  # Use the current region (us-east-1) for the S3 bucket region
   })
   

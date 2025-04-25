@@ -24,8 +24,8 @@ resource "aws_kms_alias" "ssm" {
 
 locals {
   kms_key_id = var.kms_key_id != null ? var.kms_key_id : (var.kms_key_id == null ? aws_kms_key.ssm[0].key_id : null)
-  parameter_prefix = "/dr/${var.environment}/database"
-  s3_parameter_prefix = "/dr/${var.environment}/s3"
+  parameter_prefix = "/dr/database"
+  s3_parameter_prefix = "/dr/s3"
 }
 
 # SSM Parameters for Database Connection

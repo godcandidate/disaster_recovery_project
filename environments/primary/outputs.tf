@@ -150,3 +150,9 @@ output "ami_builder_id" {
   description = "ID of the AMI builder instance in the primary region"
   value       = aws_instance.ami_builder.id
 }
+
+# S3 Bucket Outputs
+output "dr_s3_bucket_id" {
+  description = "ID of the S3 bucket in the dr region"
+  value       = module.s3.dr_bucket_id
+}
