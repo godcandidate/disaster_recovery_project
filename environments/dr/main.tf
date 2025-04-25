@@ -170,10 +170,12 @@ module "rds" {
   db_engine_version      = var.db_engine_version
   db_allocated_storage   = var.db_allocated_storage
   db_multi_az            = var.db_multi_az # Single AZ for read replica is sufficient
-  db_backup_retention_period = 1
+  db_backup_retention_period = 1  # Minimum required for read replicas
   enable_cross_region_backup = false
   is_read_replica        = true # Changed to true to create a read replica
   source_db_instance_identifier = var.primary_db_instance_id
+  db_skip_final_snapshot = true  # Skip final snapshot
+  db_final_snapshot_identifier = null  # No final snapshot needed
   
   tags = local.tags
 }
@@ -225,30 +227,7 @@ module "lambda" {
   tags = local.tags
 }
 
-# API Gateway Module removed as it's no longer needed with EventBridge
-# module "api_gateway" {
-#   source = "../../modules/api_gateway"
-#   
-#   environment      = var.environment
-#   region           = var.region
-#   step_function_arn = module.lambda.lambda_function_arn
-#   lambda_invoke_arn = module.lambda.lambda_invoke_arn
-#   lambda_arn       = module.lambda.lambda_function_arn
-#   
-#   tags = local.tags
-# }
 
-# Lambda API Connector Module
-# This connects the Lambda function to the API Gateway after both are created
-# module "lambda_api_connector" {
-#   source = "../../modules/lambda_api_connector"
-#   
-#   environment             = var.environment
-#   lambda_function_name    = module.lambda.lambda_function_name
-#   api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
-#   
-#   tags = local.tags
-# }
 
 # SSM Module - DR Region
 module "ssm" {

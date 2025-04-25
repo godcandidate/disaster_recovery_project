@@ -60,7 +60,7 @@ resource "aws_db_instance" "primary" {
   db_subnet_group_name        = aws_db_subnet_group.this.name
   vpc_security_group_ids      = [var.security_group_id]
   multi_az                    = var.db_multi_az
-  backup_retention_period     = 0  # Disabled backups
+  backup_retention_period     = var.is_read_replica ? 0 : 1  # Minimum required for source DB with read replicas
   backup_window               = var.db_backup_window
   maintenance_window          = var.db_maintenance_window
   skip_final_snapshot         = true  # Skip final snapshot
@@ -95,10 +95,10 @@ resource "aws_db_instance" "read_replica" {
   backup_retention_period     = var.db_backup_retention_period
   backup_window               = var.db_backup_window
   maintenance_window          = var.db_maintenance_window
-  skip_final_snapshot         = var.db_skip_final_snapshot
-  final_snapshot_identifier   = var.db_final_snapshot_identifier != null ? var.db_final_snapshot_identifier : "dr-db-${var.environment}-replica-final-snapshot"
+  skip_final_snapshot         = true  # Always skip final snapshot for read replica
+  final_snapshot_identifier   = null  # No final snapshot needed
   copy_tags_to_snapshot       = true
-  deletion_protection         = true
+  deletion_protection         = false  # Allow easy deletion for testing
   # Removed CloudWatch logs export
   # enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"]
 

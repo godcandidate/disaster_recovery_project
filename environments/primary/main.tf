@@ -259,7 +259,7 @@ module "rds" {
   db_engine_version      = var.db_engine_version
   db_allocated_storage   = var.db_allocated_storage
   db_multi_az            = false  # Disable Multi-AZ for high availability
-  db_backup_retention_period = 7
+  db_backup_retention_period = 1  # Minimum required for read replicas to work
   enable_cross_region_backup = false  # Disable cross-region backup for DR
   is_read_replica        = false
   

@@ -24,23 +24,23 @@ locals {
   }
 }
 
-# # Remote state for primary environment
-# data "terraform_remote_state" "primary" {
-#   backend = "local"
+# Remote state for primary environment
+data "terraform_remote_state" "primary" {
+  backend = "local"
   
-#   config = {
-#     path = "../primary/terraform.tfstate"
-#   }
-# }
+  config = {
+    path = "../primary/terraform.tfstate"
+  }
+}
 
-# # Remote state for DR environment
-# data "terraform_remote_state" "dr" {
-#   backend = "local"
+# Remote state for DR environment
+data "terraform_remote_state" "dr" {
+  backend = "local"
   
-#   config = {
-#     path = "../dr/terraform.tfstate"
-#   }
-# }
+  config = {
+    path = "../dr/terraform.tfstate"
+  }
+}
 
 # Primary region endpoint group (eu-west-1)
 resource "aws_globalaccelerator_endpoint_group" "primary" {
@@ -54,8 +54,8 @@ resource "aws_globalaccelerator_endpoint_group" "primary" {
   threshold_count               = 2 # Fail faster with fewer checks
 
   endpoint_configuration {
-    #endpoint_id             = data.terraform_remote_state.primary.outputs.lb_arn
-    endpoint_id             = "arn:aws:elasticloadbalancing:eu-west-1:495599742316:loadbalancer/app/dr-alb-primary/ecd2cd5bb2c00dee"
+    endpoint_id             = data.terraform_remote_state.primary.outputs.lb_arn
+    #endpoint_id             = "arn:aws:elasticloadbalancing:eu-west-1:495599742316:loadbalancer/app/dr-alb-primary/ecd2cd5bb2c00dee"
     weight                  = 128 # Maximum weight for primary
     client_ip_preservation_enabled = true
   }
@@ -76,8 +76,8 @@ resource "aws_globalaccelerator_endpoint_group" "dr" {
   threshold_count               = 2 # Fail faster with fewer checks
 
   endpoint_configuration {
-   // endpoint_id             = data.terraform_remote_state.dr.outputs.lb_arn
-    endpoint_id             = "arn:aws:elasticloadbalancing:us-east-1:495599742316:loadbalancer/app/dr-alb-dr/d83b839f012558c6"
+    endpoint_id             = data.terraform_remote_state.dr.outputs.lb_arn
+    # endpoint_id             = "arn:aws:elasticloadbalancing:us-east-1:495599742316:loadbalancer/app/dr-alb-dr/d83b839f012558c6"
     weight                  = 20 # Equal weight for DR to ensure full traffic when primary fails
     client_ip_preservation_enabled = true
   }
