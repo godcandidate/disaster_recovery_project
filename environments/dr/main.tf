@@ -128,13 +128,10 @@ module "ec2" {
   
   # User data script for EC2 instances
   user_data = templatefile("../../modules/templates/dr_userdata.tpl", {
-    DB_HOST_PARAM    = module.ssm.db_host_parameter_name
-    DB_PORT_PARAM    = module.ssm.db_port_parameter_name
-    DB_NAME_PARAM    = module.ssm.db_name_parameter_name
-    DB_USER_PARAM    = module.ssm.db_username_parameter_name
-    DB_PASSWORD_PARAM = module.ssm.db_password_parameter_name
-    S3_BUCKET_ID_PARAM = module.s3.dr_bucket_id
-    S3_BUCKET_REGION_PARAM = module.s3.dr_bucket_region
+    REGION_PARAM     = var.region  # Pass the current region for SSM parameter retrieval
+    DB_HOST_PARAM    = module.rds.read_replica_db_instance_address  # Directly pass the read replica address
+    S3_BUCKET_ID_PARAM = module.s3.primary_bucket_id  # Use primary bucket ID since we're replicating from primary to DR
+    S3_BUCKET_REGION_PARAM = var.region  # Use the current region (us-east-1) for the S3 bucket region
   })
   
   tags = local.tags
