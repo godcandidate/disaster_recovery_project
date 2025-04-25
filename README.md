@@ -7,6 +7,7 @@ This project implements a disaster recovery (DR) solution using the Pilot Light 
 The architecture consists of the following components:
 
 ### Primary Region (eu-west-1)
+
 - VPC with public and private subnets
 - Auto Scaling Group for EC2 instances
 - RDS MySQL database
@@ -15,6 +16,7 @@ The architecture consists of the following components:
 - AMI Builder instance for creating and copying AMIs to DR region
 
 ### DR Region (us-east-1)
+
 - VPC with public and private subnets
 - Auto Scaling Group for EC2 instances (initially scaled to 0)
 - RDS MySQL read replica
@@ -23,6 +25,7 @@ The architecture consists of the following components:
 - Lambda function for handling failover
 
 ### Global Components
+
 - Global Accelerator for automatic traffic routing between regions
 - EventBridge for cross-region event routing
 - IAM roles and policies for cross-region operations
@@ -49,91 +52,27 @@ This project implements a "Pilot Light" disaster recovery strategy with the foll
 ### Deployment Steps
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd disaster_recovery_project
    ```
 
 2. **Create terraform.tfvars files**
-   
+
    Create `environments/primary/terraform.tfvars` with the following variables:
+
    ```hcl
    # AWS Credentials
    aws_access_key = "YOUR_ACCESS_KEY"
    aws_secret_key = "YOUR_SECRET_KEY"
-   
-   # Region Configuration
-   region = "eu-west-1"
-   dr_region = "us-east-1"
-   
-   # Environment
-   environment = "primary"
-   
-   # VPC Configuration
-   vpc_cidr = "10.0.0.0/16"
-   public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
-   private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
-   availability_zones = ["eu-west-1a", "eu-west-1b"]
-   
-   # EC2 Configuration
-   instance_type = "t3.micro"
-   key_name = "your-key-pair-name"
-   
-   # RDS Configuration
-   db_name = "imageDB"
-   db_username = "dradmin"
-   db_password = "ChangeMe123!"
-   db_instance_class = "db.t3.small"
-   db_engine = "mysql"
-   db_engine_version = "8.0"
-   db_allocated_storage = 10
+
    ```
-   
-   Create `environments/dr/terraform.tfvars` with similar variables but update the region and environment:
-   ```hcl
-   # AWS Credentials
-   aws_access_key = "YOUR_ACCESS_KEY"
-   aws_secret_key = "YOUR_SECRET_KEY"
-   
-   # Region Configuration
-   region = "us-east-1"       # DR region
-   primary_region = "eu-west-1" # Primary region
-   
-   # Environment
-   environment = "dr"
-   
-   # VPC Configuration
-   vpc_cidr = "10.1.0.0/16"  # Different CIDR for DR region
-   public_subnet_cidrs = ["10.1.1.0/24", "10.1.2.0/24"]
-   private_subnet_cidrs = ["10.1.3.0/24", "10.1.4.0/24"]
-   availability_zones = ["us-east-1a", "us-east-1b"]
-   
-   # Same EC2 and RDS configurations as primary
-   instance_type = "t3.micro"
-   key_name = "your-key-pair-name"
-   
-   db_name = "imageDB"
-   db_username = "dradmin"
-   db_password = "ChangeMe123!"
-   db_instance_class = "db.t3.small"
-   db_engine = "mysql"
-   db_engine_version = "8.0"
-   db_allocated_storage = 10
-   ```
-   
-   Create `environments/global/terraform.tfvars` with:
-   ```hcl
-   # AWS Credentials
-   aws_access_key = "YOUR_ACCESS_KEY"
-   aws_secret_key = "YOUR_SECRET_KEY"
-   
-   # Region Configuration
-   region = "us-east-1"  # Global Accelerator must be created in us-east-1
-   ```
-   
+
    **Important**: Update the SNS notification email in `environments/dr/main.tf` (line ~211) to your email address
 
 3. **Deploy Primary Environment**
+
    ```bash
    cd environments/primary
    terraform init
@@ -142,13 +81,14 @@ This project implements a "Pilot Light" disaster recovery strategy with the foll
    ```
 
 4. **Deploy DR Environment**
+
    ```bash
    cd ../dr
    terraform init
    terraform plan
    terraform apply
    ```
-   
+
    > **Note**: You will receive an email to confirm the SNS subscription. Click the confirmation link to receive failover notifications.
 
 5. **Deploy Global Environment**
@@ -172,6 +112,7 @@ chmod +x simulate_failover.sh
 ```
 
 This script will:
+
 1. Terminate the AMI builder instance in the primary region
 2. Delete the RDS instance without creating a final snapshot
 3. Wait for EventBridge to detect these changes
