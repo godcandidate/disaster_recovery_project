@@ -47,3 +47,14 @@ output "db_connection_string_jdbc_parameter_name" {
   description = "Name of the SSM parameter for JDBC connection string"
   value       = aws_ssm_parameter.db_connection_string_jdbc.name
 }
+
+# S3 bucket parameter outputs
+output "s3_bucket_id_parameter_name" {
+  description = "Name of the SSM parameter for S3 bucket ID"
+  value       = aws_ssm_parameter.s3_bucket_id.name
+}
+
+output "s3_bucket_region_parameter_name" {
+  description = "Name of the SSM parameter for S3 bucket region"
+  value       = aws_ssm_parameter.s3_bucket_region.name
+}

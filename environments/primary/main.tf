@@ -139,8 +139,8 @@ resource "aws_instance" "ami_builder" {
     EC2_IP           = "dummy" # Will be replaced at runtime by the script
     AWS_ACCESS_KEY   = var.aws_access_key
     AWS_SECRET_KEY   = var.aws_secret_key
-    S3_BUCKET_ID_PARAM = "/dr/primary/s3/bucket_id"
-    S3_BUCKET_REGION_PARAM = "/dr/primary/s3/bucket_region"
+    S3_BUCKET_ID_PARAM = module.ssm.s3_bucket_id_parameter_name
+    S3_BUCKET_REGION_PARAM = module.ssm.s3_bucket_region_parameter_name
   })
   
   tags = merge(
@@ -234,8 +234,8 @@ module "ec2" {
     EC2_IP           = "dummy" # Will be replaced at runtime by the script
     AWS_ACCESS_KEY   = var.aws_access_key
     AWS_SECRET_KEY   = var.aws_secret_key
-    S3_BUCKET_ID_PARAM = module.s3.primary_bucket_id
-    S3_BUCKET_REGION_PARAM = module.s3.primary_bucket_region
+    S3_BUCKET_ID_PARAM = module.ssm.s3_bucket_id_parameter_name
+    S3_BUCKET_REGION_PARAM = module.ssm.s3_bucket_region_parameter_name
   })
   
   tags = local.tags
@@ -278,18 +278,18 @@ module "load_balancer" {
   tags = local.tags
 }
 
-# Monitoring Module - Primary Region
-module "monitoring" {
-  source = "../../modules/monitoring"
+# # Monitoring Module - Primary Region
+# module "monitoring" {
+#   source = "../../modules/monitoring"
   
-  environment = var.environment
-  region      = var.region
-  asg_name    = module.ec2.autoscaling_group_name
-  rds_primary_id = module.rds.primary_db_instance_id
-  rds_read_replica_id = null # No read replica in primary region
+#   environment = var.environment
+#   region      = var.region
+#   asg_name    = module.ec2.autoscaling_group_name
+#   rds_primary_id = module.rds.primary_db_instance_id
+#   rds_read_replica_id = null # No read replica in primary region
   
-  tags = local.tags
-}
+#   tags = local.tags
+# }
 
 # EventBridge rule to monitor AMI builder instance state
 resource "aws_cloudwatch_event_rule" "ami_builder_state_change" {

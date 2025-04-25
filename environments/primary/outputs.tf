@@ -30,7 +30,6 @@ output "rds_security_group_id" {
   value       = module.security_groups.rds_security_group_id
 }
 
-# Lambda outputs removed as requested
 
 # IAM Outputs
 output "ec2_role_arn" {
@@ -48,7 +47,6 @@ output "rds_role_arn" {
   value       = module.iam.rds_role_arn
 }
 
-# Lambda outputs removed as requested
 
 # Region Output
 output "region" {
@@ -56,7 +54,6 @@ output "region" {
   value       = var.region
 }
 
-# S3 outputs removed as requested
 
 # EC2 Outputs
 output "launch_template_id" {
@@ -79,7 +76,6 @@ output "ami_id" {
   value       = module.ec2.ami_id
 }
 
-# Monitoring outputs removed as requested
 
 # RDS Outputs
 output "primary_db_instance_id" {
@@ -147,4 +143,10 @@ output "lb_dns_name" {
 output "target_group_arn" {
   description = "ARN of the target group in the primary region"
   value       = module.load_balancer.target_group_arn
+}
+
+# AMI Builder Output
+output "ami_builder_id" {
+  description = "ID of the AMI builder instance in the primary region"
+  value       = aws_instance.ami_builder.id
 }
