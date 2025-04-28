@@ -2,6 +2,8 @@
 
 This project implements a disaster recovery (DR) solution using the Pilot Light strategy with Terraform. The infrastructure is organized in a modular and manageable way to ensure easy maintenance and scalability.
 
+
+<p align="center"> <img src="./dr-infra.png" alt="Architecture Diagram" width="800"> </p>
 ## Project Structure
 
 The architecture consists of the following components:
