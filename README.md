@@ -3,7 +3,7 @@
 This project implements a disaster recovery (DR) solution using the Pilot Light strategy with Terraform. The infrastructure is organized in a modular and manageable way to ensure easy maintenance and scalability.
 
 
-<p align="center"> <img src="./dr-infra.png" alt="Architecture Diagram" width="800"> </p>
+<p align="center"> <img src="./project-infra.png" alt="Architecture Diagram" width="800"> </p>
 
 ## Project Structure
 
@@ -139,36 +139,7 @@ This script will:
 
 ## Architecture Diagram
 
-```
-                                   ┌─────────────────────┐
-                                   │  Global Accelerator  │
-                                   └──────────┬──────────┘
-                                              │
-                 ┌─────────────────────────┬──┴───┬─────────────────────────┐
-                 │                         │      │                         │
-        ┌────────▼─────────┐     ┌─────────▼──────▼─────────┐     ┌────────▼─────────┐
-        │  Load Balancer   │     │                          │     │  Load Balancer   │
-        │   (Primary)      │     │                          │     │      (DR)        │
-        └────────┬─────────┘     │                          │     └────────┬─────────┘
-                 │               │                          │              │
-        ┌────────▼─────────┐     │     EventBridge &       │     ┌────────▼─────────┐
-        │  Auto Scaling    │     │     Lambda for          │     │  Auto Scaling    │
-        │  Group (Active)  │     │     Failover            │     │  Group (min=0)   │
-        └────────┬─────────┘     │                          │     └────────┬─────────┘
-                 │               │                          │              │
-        ┌────────▼─────────┐     │                          │     ┌────────▼─────────┐
-        │  RDS Database    │     │                          │     │  RDS Read Replica │
-        │   (Primary)      │◄────┼──────────────────────────┼────►│  (Promotion on    │
-        └────────┬─────────┘     │                          │     │   failover)       │
-                 │               │                          │     └────────┬─────────┘
-        ┌────────▼─────────┐     │                          │     ┌────────▼─────────┐
-        │  S3 Bucket       │     │                          │     │  S3 Bucket       │
-        │   (Primary)      │◄────┼──────────────────────────┼────►│  (Replicated)    │
-        └──────────────────┘     │                          │     └──────────────────┘
-                                 │                          │
-                                 └──────────────────────────┘
-                                 eu-west-1         us-east-1
-```
+<p align="center"> <img src="./dr-infra.png" alt="AWS Architecture Diagram" width="800"> </p>
 
 ## Customization
 
