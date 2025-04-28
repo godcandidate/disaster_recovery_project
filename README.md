@@ -4,6 +4,7 @@ This project implements a disaster recovery (DR) solution using the Pilot Light 
 
 
 <p align="center"> <img src="./dr-infra.png" alt="Architecture Diagram" width="800"> </p>
+
 ## Project Structure
 
 The architecture consists of the following components:
