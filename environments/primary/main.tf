@@ -278,18 +278,6 @@ module "load_balancer" {
   tags = local.tags
 }
 
-# # Monitoring Module - Primary Region
-# module "monitoring" {
-#   source = "../../modules/monitoring"
-  
-#   environment = var.environment
-#   region      = var.region
-#   asg_name    = module.ec2.autoscaling_group_name
-#   rds_primary_id = module.rds.primary_db_instance_id
-#   rds_read_replica_id = null # No read replica in primary region
-  
-#   tags = local.tags
-# }
 
 # EventBridge rule to monitor AMI builder instance state
 resource "aws_cloudwatch_event_rule" "ami_builder_state_change" {
